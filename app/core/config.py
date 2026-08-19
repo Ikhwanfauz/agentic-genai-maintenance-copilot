@@ -13,12 +13,18 @@ class Settings(BaseSettings):
     api_port: int = 8000
     database_url: str = "sqlite:///./data/maintenance_copilot.db"
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    engineering_docs_path: str = "./data/engineering_docs"
+    vector_store_path: str = "./data/chroma"
+    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    engineering_docs_collection: str = "engineering_docs"
+
+
+model_config = SettingsConfigDict(
+    env_file=".env",
+    env_file_encoding="utf-8",
+    case_sensitive=False,
+    extra="ignore",
+)
 
 
 @lru_cache

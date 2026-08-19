@@ -25,6 +25,7 @@ htmlcov/
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+data/chroma/
 logs/
 
 # Editors

@@ -5,6 +5,11 @@ from app.schemas.maintenance import (
     MaintenanceHistoryOutput,
     MaintenanceRecordOutput,
 )
+from app.schemas.rag import (
+    EngineeringDocumentResult,
+    EngineeringDocumentSearchInput,
+    EngineeringDocumentSearchOutput,
+)
 from app.schemas.sensor import (
     DataQualitySummary,
     SensorAnalysisInput,
@@ -18,6 +23,9 @@ __all__ = [
     "AssetDetailsInput",
     "AssetDetailsOutput",
     "DataQualitySummary",
+    "EngineeringDocumentResult",
+    "EngineeringDocumentSearchInput",
+    "EngineeringDocumentSearchOutput",
     "MaintenanceHistoryInput",
     "MaintenanceHistoryOutput",
     "MaintenanceRecordOutput",
