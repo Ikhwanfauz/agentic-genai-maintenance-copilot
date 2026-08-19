@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V1 - Industrial Data Layer**
+Current version: **V2 - Deterministic Tools**
 
 Implemented:
 
@@ -18,23 +18,29 @@ Implemented:
 - SQLAlchemy 2.0 data models
 - SQLite development database
 - Alembic schema migrations
-- Asset and maintenance-history records
-- Synthetic time-series sensor readings
-- Work-order and persisted approval schemas
-- Agent-run, agent-step, and tool-call logging schemas
-- Deterministic and idempotent database seeding
+- Deterministic industrial-data seeding
+- Pydantic tool input and output contracts
+- Read-only asset-detail retrieval
+- Filtered maintenance-history retrieval
+- Deterministic sensor trend analysis
+- Engineering-document ingestion and chunking
+- Local Sentence Transformers embeddings
+- Persistent Chroma vector database
+- Semantic engineering-document search
+- Structured evidence citations
+- Cross-tool read-only integration testing
 - Automated tests with pytest
 - Code formatting and linting with Ruff
 
-The deterministic maintenance tools, RAG pipeline, LLM integration, LangGraph agent, user interface, and cloud deployment are not yet implemented.
+The hosted LLM integration, LangGraph agent loop, grounded diagnosis generation, human-approval enforcement, user interface, evaluation suite, Docker deployment, and Azure deployment are not yet implemented.
 
 ## Safety Boundary
 
-This copilot does not directly control machinery, shut down equipment, or modify PLC parameters.
+This copilot does not directly control machinery, shut down equipment, modify PLC parameters, or bypass equipment interlocks.
 
-Read-only investigation tools may run autonomously. State-changing application actions must pass application-level human approval before execution.
+The V2 investigation tools are read-only. Integration tests verify that asset, maintenance, sensor, and engineering-document retrieval do not change SQL or vector-store record counts.
 
-V1 defines the work-order and approval persistence schemas. Approval enforcement and agent pause/resume behavior will be implemented in V5.
+Creating a proposed work order does not authorize physical maintenance. Application-level approval enforcement and LangGraph pause/resume behavior will be implemented in V5.
 
 ## Planned Maintenance Workflow
 
@@ -56,7 +62,7 @@ Investigate
 
 ## V1 Industrial Dataset
 
-The seed process creates a deterministic simulated maintenance environment containing:
+The deterministic seed process creates:
 
 | Data type | Records |
 |---|---:|
@@ -68,13 +74,76 @@ The seed process creates a deterministic simulated maintenance environment conta
 
 The sensor dataset contains seven days of hourly readings.
 
-P-101 and M-101 contain correlated degradation trends in vibration, temperature, flow, pressure, and motor current. Stable comparison assets and known data-quality issues are also included for deterministic tool development and evaluation.
+P-101 and M-101 contain correlated degradation trends in vibration, temperature, flow, pressure, and motor current. Stable comparison assets and known data-quality issues are included for deterministic tool development and evaluation.
 
 All sensor data is synthetic and must not be interpreted as live industrial telemetry.
 
+## V2 Deterministic Tools
+
+### `get_asset_details()`
+
+Retrieves structured asset information, including:
+
+- Equipment identity
+- Type and operating status
+- Criticality
+- Location and manufacturer
+- Parent and child asset relationships
+
+### `query_maintenance_history()`
+
+Retrieves maintenance records with bounded filtering by:
+
+- Asset code
+- Maintenance type
+- Start and end time
+- Result limit
+
+Results are ordered from newest to oldest and indicate whether additional matching records exist.
+
+### `analyze_sensor_data()`
+
+Performs deterministic sensor analysis including:
+
+- Data-quality accounting
+- Bad and suspect reading exclusion
+- Minimum, maximum, and mean values
+- Early-window and recent-window comparison
+- Percentage change
+- Linear-regression slope
+- Increasing, decreasing, or stable trend classification
+
+The relative trend threshold is an analytical heuristic, not an equipment trip, shutdown, or safety threshold.
+
+### `search_engineering_docs()`
+
+Performs semantic retrieval over synthetic engineering documents using:
+
+- `sentence-transformers/all-MiniLM-L6-v2`
+- 384-dimensional normalized embeddings
+- Persistent Chroma vector storage
+- Optional asset filtering
+- Bounded top-k retrieval
+- Minimum relevance filtering
+- Structured source citations
+
+The search tool retrieves engineering evidence. It does not independently generate a diagnosis.
+
+## Engineering Document Corpus
+
+The V2 corpus contains three original synthetic documents:
+
+- Centrifugal Pump Troubleshooting Guide
+- Motor and Pump Alignment Maintenance Guide
+- Maintenance Investigation and Work-Order Safety Procedure
+
+The documents are split into nine section-level chunks. Each chunk has a stable ID and metadata containing its document ID, title, section, source path, and applicable assets.
+
+The generated Chroma index is not committed to Git because it can be reproduced from the source documents.
+
 ## Database Schema
 
-V1 introduces these application tables:
+Application tables:
 
 - `assets`
 - `sensor_readings`
@@ -85,7 +154,7 @@ V1 introduces these application tables:
 - `agent_steps`
 - `tool_calls`
 
-Alembic also maintains the `alembic_version` table to track the active database revision.
+Alembic maintains the `alembic_version` table to track the active database revision.
 
 ## Current Technology
 
@@ -97,10 +166,12 @@ Alembic also maintains the `alembic_version` table to track the active database 
 - SQLAlchemy 2.0
 - Alembic
 - SQLite
+- ChromaDB
+- Sentence Transformers
 - pytest
 - Ruff
 
-Additional technologies will be introduced only when required by their MVP version.
+LangGraph and the hosted LLM provider will be introduced in V3.
 
 ## Repository Structure
 
@@ -119,19 +190,30 @@ app/
 |   |-- seed_reference.py
 |   `-- seed_sensor.py
 |-- models/
-|   |-- agent_log.py
-|   |-- approval.py
+|-- rag/
+|   |-- documents.py
+|   |-- embeddings.py
+|   `-- indexer.py
+|-- schemas/
 |   |-- asset.py
 |   |-- common.py
-|   |-- enums.py
 |   |-- maintenance.py
-|   |-- sensor.py
-|   `-- work_order.py
+|   |-- rag.py
+|   `-- sensor.py
+|-- tools/
+|   |-- asset.py
+|   |-- exceptions.py
+|   |-- maintenance.py
+|   |-- rag.py
+|   `-- sensor.py
 `-- main.py
+
+data/
+|-- engineering_docs/
+`-- .gitkeep
 
 migrations/
 tests/
-data/
 ```
 
 ## Local Setup
@@ -143,7 +225,7 @@ conda env create --file environment.yml
 conda activate MaintenanceCopilot
 ```
 
-If the environment already exists, install or update the dependencies with:
+If the environment already exists:
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -167,7 +249,15 @@ Seed the simulated industrial dataset:
 python -m app.db.seed
 ```
 
-The seed command is idempotent. Running it again detects the existing complete dataset instead of creating duplicate records.
+The SQL seed command is idempotent. Running it again detects the existing complete dataset instead of creating duplicate records.
+
+Index the engineering-document corpus:
+
+```bash
+python -m app.rag.indexer
+```
+
+The RAG indexing command uses stable chunk IDs and Chroma upserts, so repeated indexing does not duplicate chunks.
 
 ## Run the API
 
@@ -179,6 +269,8 @@ Open:
 
 - Health endpoint: `http://127.0.0.1:8000/health`
 - Swagger UI: `http://127.0.0.1:8000/docs`
+
+V2 tools are currently Python application functions. REST endpoints for maintenance investigations will be introduced in later application versions.
 
 ## Quality Checks
 
@@ -200,7 +292,7 @@ Run automated tests:
 python -m pytest
 ```
 
-Check installed dependency compatibility:
+Check dependency compatibility:
 
 ```bash
 python -m pip check
@@ -238,7 +330,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 
 - V0 - Foundation: complete
 - V1 - Industrial Data Layer: complete
-- V2 - Deterministic Tools
+- V2 - Deterministic Tools: complete
 - V3 - GenAI and LangGraph Agent Core
 - V4 - Grounded Maintenance Investigation
 - V5 - Human-in-the-Loop Actions
