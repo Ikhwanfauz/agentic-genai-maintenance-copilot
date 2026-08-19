@@ -5,12 +5,24 @@ from app.schemas.maintenance import (
     MaintenanceHistoryOutput,
     MaintenanceRecordOutput,
 )
+from app.schemas.sensor import (
+    DataQualitySummary,
+    SensorAnalysisInput,
+    SensorAnalysisOutput,
+    SensorMetricOutput,
+    TrendDirection,
+)
 
 __all__ = [
     "AssetCodeInput",
     "AssetDetailsInput",
     "AssetDetailsOutput",
+    "DataQualitySummary",
     "MaintenanceHistoryInput",
     "MaintenanceHistoryOutput",
     "MaintenanceRecordOutput",
+    "SensorAnalysisInput",
+    "SensorAnalysisOutput",
+    "SensorMetricOutput",
+    "TrendDirection",
 ]
