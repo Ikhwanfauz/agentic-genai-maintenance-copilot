@@ -7,12 +7,20 @@ from app.agent.state import (
     AgentStatus,
     create_initial_state,
 )
+from app.agent.tool_adapters import (
+    InvestigationToolDependencies,
+    build_investigation_tools,
+)
+from app.agent.tool_binding import bind_investigation_tools
 
 __all__ = [
     "AgentRoute",
     "AgentState",
     "AgentStatus",
+    "InvestigationToolDependencies",
+    "bind_investigation_tools",
     "build_agent_graph",
+    "build_investigation_tools",
     "build_state_flow",
     "create_initial_state",
 ]

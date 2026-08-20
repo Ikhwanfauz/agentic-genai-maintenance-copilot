@@ -1,6 +1,6 @@
 from typing import Literal
 
-from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.runnables import Runnable
 from langgraph.graph import END, START, StateGraph
 
 from app.agent.nodes import create_call_model_node
@@ -56,7 +56,7 @@ def build_state_flow():
     return builder.compile()
 
 
-def build_agent_graph(model: BaseChatModel):
+def build_agent_graph(model: Runnable):
     builder = StateGraph(AgentState)
 
     builder.add_node("initialize", initialize_request)

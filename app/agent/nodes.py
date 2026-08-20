@@ -1,14 +1,14 @@
 from collections.abc import Callable
 
-from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage
+from langchain_core.runnables import Runnable
 
 from app.agent.prompts import MAINTENANCE_COPILOT_SYSTEM_PROMPT
 from app.agent.state import AgentRoute, AgentState, AgentStatus
 
 
 def create_call_model_node(
-    model: BaseChatModel,
+    model: Runnable,
 ) -> Callable[[AgentState], dict[str, object]]:
     def call_model(state: AgentState) -> dict[str, object]:
         if state["iteration_count"] >= state["max_iterations"]:
