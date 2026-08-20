@@ -12,6 +12,8 @@ class AgentStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     READY = "ready"
+    COMPLETED = "completed"
+    LIMIT_REACHED = "limit_reached"
     REJECTED = "rejected"
 
 

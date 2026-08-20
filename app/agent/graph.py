@@ -1,7 +1,9 @@
 from typing import Literal
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
+from app.agent.nodes import create_call_model_node
 from app.agent.state import AgentRoute, AgentState, AgentStatus
 
 
@@ -49,6 +51,23 @@ def build_state_flow():
     builder.add_edge(START, "initialize")
     builder.add_conditional_edges("initialize", route_request)
     builder.add_edge("mark_ready", END)
+    builder.add_edge("reject_request", END)
+
+    return builder.compile()
+
+
+def build_agent_graph(model: BaseChatModel):
+    builder = StateGraph(AgentState)
+
+    builder.add_node("initialize", initialize_request)
+    builder.add_node("mark_ready", mark_ready)
+    builder.add_node("reject_request", reject_request)
+    builder.add_node("call_model", create_call_model_node(model))
+
+    builder.add_edge(START, "initialize")
+    builder.add_conditional_edges("initialize", route_request)
+    builder.add_edge("mark_ready", "call_model")
+    builder.add_edge("call_model", END)
     builder.add_edge("reject_request", END)
 
     return builder.compile()

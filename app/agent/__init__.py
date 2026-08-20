@@ -1,6 +1,6 @@
 """LangGraph maintenance investigation agent."""
 
-from app.agent.graph import build_state_flow
+from app.agent.graph import build_agent_graph, build_state_flow
 from app.agent.state import (
     AgentRoute,
     AgentState,
@@ -12,6 +12,7 @@ __all__ = [
     "AgentRoute",
     "AgentState",
     "AgentStatus",
+    "build_agent_graph",
     "build_state_flow",
     "create_initial_state",
 ]
