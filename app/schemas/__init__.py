@@ -1,5 +1,13 @@
 from app.schemas.asset import AssetDetailsInput, AssetDetailsOutput
 from app.schemas.common import AssetCodeInput
+from app.schemas.diagnosis import (
+    DiagnosisConfidence,
+    EvidenceReference,
+    EvidenceSourceType,
+    InvestigationOutcome,
+    MaintenanceDiagnosis,
+    RecommendedAction,
+)
 from app.schemas.maintenance import (
     MaintenanceHistoryInput,
     MaintenanceHistoryOutput,
@@ -23,12 +31,18 @@ __all__ = [
     "AssetDetailsInput",
     "AssetDetailsOutput",
     "DataQualitySummary",
+    "DiagnosisConfidence",
     "EngineeringDocumentResult",
     "EngineeringDocumentSearchInput",
     "EngineeringDocumentSearchOutput",
+    "EvidenceReference",
+    "EvidenceSourceType",
+    "InvestigationOutcome",
+    "MaintenanceDiagnosis",
     "MaintenanceHistoryInput",
     "MaintenanceHistoryOutput",
     "MaintenanceRecordOutput",
+    "RecommendedAction",
     "SensorAnalysisInput",
     "SensorAnalysisOutput",
     "SensorMetricOutput",

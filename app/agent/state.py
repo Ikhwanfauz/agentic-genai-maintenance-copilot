@@ -7,6 +7,8 @@ from langchain_core.messages import AnyMessage, HumanMessage
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
+from app.schemas.diagnosis import MaintenanceDiagnosis
+
 
 class AgentStatus(StrEnum):
     PENDING = "pending"
@@ -36,6 +38,7 @@ class AgentState(TypedDict):
     route: AgentRoute | None
     visited_nodes: Annotated[list[str], add]
     error: str | None
+    diagnosis: MaintenanceDiagnosis | None
 
 
 def create_initial_state(
@@ -62,4 +65,5 @@ def create_initial_state(
         route=None,
         visited_nodes=[],
         error=None,
+        diagnosis=None,
     )
