@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,13 +19,24 @@ class Settings(BaseSettings):
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     engineering_docs_collection: str = "engineering_docs"
 
+    llm_provider: Literal["openai", "azure_openai"] = "openai"
+    llm_model: str = "gpt-5.6-luna"
+    llm_timeout_seconds: float = Field(default=30.0, gt=0)
+    llm_max_retries: int = Field(default=2, ge=0, le=10)
 
-model_config = SettingsConfigDict(
-    env_file=".env",
-    env_file_encoding="utf-8",
-    case_sensitive=False,
-    extra="ignore",
-)
+    openai_api_key: SecretStr | None = None
+
+    azure_openai_api_key: SecretStr | None = None
+    azure_openai_endpoint: str | None = None
+    azure_openai_deployment: str | None = None
+    azure_openai_api_version: str | None = None
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 @lru_cache
