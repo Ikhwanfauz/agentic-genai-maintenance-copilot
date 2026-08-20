@@ -25,10 +25,42 @@ def create_call_model_node(
                 *state["messages"],
             ]
         )
+        next_iteration_count = state["iteration_count"] + 1
+        tool_calls = getattr(response, "tool_calls", [])
+
+        if len(tool_calls) > 1:
+            return {
+                "messages": [response],
+                "iteration_count": next_iteration_count,
+                "status": AgentStatus.FAILED,
+                "route": AgentRoute.END,
+                "visited_nodes": ["call_model"],
+                "error": "The model requested more than one tool call in one iteration.",
+            }
+
+        if tool_calls:
+            if next_iteration_count >= state["max_iterations"]:
+                return {
+                    "messages": [response],
+                    "iteration_count": next_iteration_count,
+                    "status": AgentStatus.LIMIT_REACHED,
+                    "route": AgentRoute.END,
+                    "visited_nodes": ["call_model"],
+                    "error": ("The model requested a tool call at the maximum iteration boundary."),
+                }
+
+            return {
+                "messages": [response],
+                "iteration_count": next_iteration_count,
+                "status": AgentStatus.AWAITING_TOOL,
+                "route": AgentRoute.TOOLS,
+                "visited_nodes": ["call_model"],
+                "error": None,
+            }
 
         return {
             "messages": [response],
-            "iteration_count": state["iteration_count"] + 1,
+            "iteration_count": next_iteration_count,
             "status": AgentStatus.COMPLETED,
             "route": AgentRoute.END,
             "visited_nodes": ["call_model"],

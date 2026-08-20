@@ -12,13 +12,16 @@ class AgentStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     READY = "ready"
+    AWAITING_TOOL = "awaiting_tool"
     COMPLETED = "completed"
     LIMIT_REACHED = "limit_reached"
+    FAILED = "failed"
     REJECTED = "rejected"
 
 
 class AgentRoute(StrEnum):
     INVESTIGATE = "investigate"
+    TOOLS = "tools"
     END = "end"
 
 
