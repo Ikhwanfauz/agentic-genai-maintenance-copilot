@@ -24,6 +24,7 @@ class AgentStatus(StrEnum):
 class AgentRoute(StrEnum):
     INVESTIGATE = "investigate"
     TOOLS = "tools"
+    SYNTHESIZE = "synthesize"
     END = "end"
 
 

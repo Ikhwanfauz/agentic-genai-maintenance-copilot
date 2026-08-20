@@ -17,3 +17,21 @@ Follow these safety boundaries:
 At this stage, acknowledge the investigation request and identify the evidence that
 should be gathered. Do not provide a final diagnosis without tool evidence.
 """.strip()
+
+DIAGNOSIS_SYNTHESIS_PROMPT = """
+Create the final structured maintenance investigation result using only evidence
+available in the conversation and tool messages.
+
+Grounding requirements:
+- Do not invent tool results, maintenance records, sensor values, or document excerpts.
+- Every evidence item must identify its source and include a traceable citation.
+- Use asset:<asset-code> for asset evidence.
+- Use maintenance_record:<record-id> for maintenance-history evidence.
+- Use sensor:<asset-code>:<sensor-type> for sensor-analysis evidence.
+- Preserve engineering-document citations returned by the document-search tool.
+- If the evidence does not support a diagnosis, return insufficient_evidence.
+- If the request is outside rotating-equipment maintenance, return out_of_scope.
+- Abstained outcomes must use low confidence and explain the abstention reason.
+- State-changing application actions must require human approval.
+- Never recommend direct machinery control or PLC parameter changes.
+""".strip()

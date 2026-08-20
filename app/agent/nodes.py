@@ -9,6 +9,8 @@ from app.agent.state import AgentRoute, AgentState, AgentStatus
 
 def create_call_model_node(
     model: Runnable,
+    *,
+    require_structured_diagnosis: bool = False,
 ) -> Callable[[AgentState], dict[str, object]]:
     def call_model(state: AgentState) -> dict[str, object]:
         if state["iteration_count"] >= state["max_iterations"]:
@@ -61,8 +63,10 @@ def create_call_model_node(
         return {
             "messages": [response],
             "iteration_count": next_iteration_count,
-            "status": AgentStatus.COMPLETED,
-            "route": AgentRoute.END,
+            "status": (
+                AgentStatus.RUNNING if require_structured_diagnosis else AgentStatus.COMPLETED
+            ),
+            "route": (AgentRoute.SYNTHESIZE if require_structured_diagnosis else AgentRoute.END),
             "visited_nodes": ["call_model"],
             "error": None,
         }

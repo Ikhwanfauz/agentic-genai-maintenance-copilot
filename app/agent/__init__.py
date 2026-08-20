@@ -7,6 +7,7 @@ from app.agent.state import (
     AgentStatus,
     create_initial_state,
 )
+from app.agent.synthesis import bind_diagnosis_output
 from app.agent.tool_adapters import (
     InvestigationToolDependencies,
     build_investigation_tools,
@@ -18,6 +19,7 @@ __all__ = [
     "AgentState",
     "AgentStatus",
     "InvestigationToolDependencies",
+    "bind_diagnosis_output",
     "bind_investigation_tools",
     "build_agent_graph",
     "build_investigation_tools",
