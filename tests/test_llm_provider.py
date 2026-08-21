@@ -4,7 +4,7 @@ import pytest
 
 from app.core.config import Settings
 from app.llm.exceptions import LLMConfigurationError
-from app.llm.provider import create_chat_model
+from app.llm.provider import _build_azure_v1_base_url, create_chat_model
 
 
 def test_settings_define_safe_llm_defaults() -> None:
@@ -14,6 +14,30 @@ def test_settings_define_safe_llm_defaults() -> None:
     assert settings.llm_model == "gpt-5.4-mini"
     assert settings.llm_reasoning_effort == "low"
     assert settings.openai_api_key is None
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "expected_base_url"),
+    [
+        (
+            "https://example.openai.azure.com",
+            "https://example.openai.azure.com/openai/v1/",
+        ),
+        (
+            "https://example.openai.azure.com/",
+            "https://example.openai.azure.com/openai/v1/",
+        ),
+        (
+            "https://example.openai.azure.com/openai/v1/",
+            "https://example.openai.azure.com/openai/v1/",
+        ),
+    ],
+)
+def test_azure_v1_base_url_normalization(
+    endpoint: str,
+    expected_base_url: str,
+) -> None:
+    assert _build_azure_v1_base_url(endpoint) == expected_base_url
 
 
 def test_openai_provider_requires_api_key() -> None:

@@ -38,6 +38,8 @@ V4 multi-source grounded investigation, V5 human-approved actions, agent REST
 endpoints, Streamlit UI, persisted observability, evaluation, Docker, and Azure
 application deployment are not yet implemented.
 
+## Safety Boundary
+
 This copilot does not directly control machinery, shut down equipment, modify PLC
 parameters, or bypass equipment interlocks.
 
@@ -270,6 +272,21 @@ Create a local configuration file:
 ```bat
 copy .env.example .env
 ```
+
+For Azure OpenAI, configure the local `.env` file:
+
+```text
+LLM_PROVIDER=azure_openai
+LLM_MODEL=gpt-5.4-mini
+LLM_REASONING_EFFORT=low
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_DEPLOYMENT=gpt-5.4-mini
+```
+
+The endpoint may be supplied either as the Azure resource endpoint or with the
+`/openai/v1/` suffix. Never commit the populated `.env` file or expose its API
+key.
 
 Apply the latest database migration:
 

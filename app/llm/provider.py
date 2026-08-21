@@ -25,7 +25,12 @@ def _require_text(value: str | None, environment_variable: str) -> str:
 
 
 def _build_azure_v1_base_url(endpoint: str) -> str:
-    return f"{endpoint.rstrip('/')}/openai/v1/"
+    normalized_endpoint = endpoint.rstrip("/")
+
+    if normalized_endpoint.endswith("/openai/v1"):
+        return f"{normalized_endpoint}/"
+
+    return f"{normalized_endpoint}/openai/v1/"
 
 
 def create_chat_model(settings: Settings | None = None) -> BaseChatModel:
