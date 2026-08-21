@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     engineering_docs_collection: str = "engineering_docs"
 
     llm_provider: Literal["openai", "azure_openai"] = "openai"
-    llm_model: str = "gpt-5.6-luna"
+    llm_model: str = "gpt-5.4-mini"
+    llm_reasoning_effort: Literal["none", "low", "medium", "high"] = "low"
     llm_timeout_seconds: float = Field(default=30.0, gt=0)
     llm_max_retries: int = Field(default=2, ge=0, le=10)
 
@@ -29,7 +30,6 @@ class Settings(BaseSettings):
     azure_openai_api_key: SecretStr | None = None
     azure_openai_endpoint: str | None = None
     azure_openai_deployment: str | None = None
-    azure_openai_api_version: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

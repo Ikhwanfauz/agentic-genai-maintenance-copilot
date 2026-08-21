@@ -6,41 +6,51 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V2 - Deterministic Tools**
+Current version: **V3 - GenAI and LangGraph Agent Core**
 
 Implemented:
 
 - Python 3.11 isolated environment
-- FastAPI application foundation
-- Typed environment configuration
-- Basic application logging
-- `GET /health` endpoint
-- SQLAlchemy 2.0 data models
-- SQLite development database
-- Alembic schema migrations
+- FastAPI application foundation and `GET /health`
+- Typed environment configuration and application logging
+- SQLAlchemy models, SQLite database, and Alembic migrations
 - Deterministic industrial-data seeding
+- Read-only asset, maintenance-history, sensor-analysis, and RAG tools
 - Pydantic tool input and output contracts
-- Read-only asset-detail retrieval
-- Filtered maintenance-history retrieval
-- Deterministic sensor trend analysis
-- Engineering-document ingestion and chunking
-- Local Sentence Transformers embeddings
-- Persistent Chroma vector database
-- Semantic engineering-document search
+- Local Sentence Transformers embeddings and persistent Chroma storage
 - Structured evidence citations
-- Cross-tool read-only integration testing
+- Hosted LLM provider abstraction for OpenAI and Azure OpenAI
+- Azure OpenAI v1 integration using `gpt-5.4-mini`
+- Typed LangGraph agent state
+- Bounded model-tool-model iteration loop
+- Structured tool binding with parallel tool calls disabled
+- Deterministic tool execution through application-owned adapters
+- Structured `MaintenanceDiagnosis` output
+- Evidence-aware insufficient-evidence behavior
 - Automated tests with pytest
 - Code formatting and linting with Ruff
 
-The hosted LLM integration, LangGraph agent loop, grounded diagnosis generation, human-approval enforcement, user interface, evaluation suite, Docker deployment, and Azure deployment are not yet implemented.
+Manual hosted validation has confirmed direct Azure inference, real model tool
+selection, SQLite-backed tool execution, bounded LangGraph routing, structured
+diagnosis generation, citation capture, and evidence-based abstention.
 
-## Safety Boundary
+V4 multi-source grounded investigation, V5 human-approved actions, agent REST
+endpoints, Streamlit UI, persisted observability, evaluation, Docker, and Azure
+application deployment are not yet implemented.
 
-This copilot does not directly control machinery, shut down equipment, modify PLC parameters, or bypass equipment interlocks.
+This copilot does not directly control machinery, shut down equipment, modify PLC
+parameters, or bypass equipment interlocks.
 
-The V2 investigation tools are read-only. Integration tests verify that asset, maintenance, sensor, and engineering-document retrieval do not change SQL or vector-store record counts.
+All V3 investigation tools are read-only. LangGraph controls routing and bounded
+iteration, while application-owned Python adapters execute deterministic SQL,
+sensor-analysis, and RAG operations.
 
-Creating a proposed work order does not authorize physical maintenance. Application-level approval enforcement and LangGraph pause/resume behavior will be implemented in V5.
+The structured diagnosis contract supports an `insufficient_evidence` outcome so
+the agent can abstain instead of inventing a fault or root cause.
+
+Creating a proposed work order does not authorize physical maintenance.
+Application-level approval enforcement, duplicate-action protection, and
+LangGraph pause/resume behavior will be implemented in V5.
 
 ## Planned Maintenance Workflow
 
@@ -129,6 +139,30 @@ Performs semantic retrieval over synthetic engineering documents using:
 
 The search tool retrieves engineering evidence. It does not independently generate a diagnosis.
 
+## V3 GenAI and LangGraph Agent Core
+
+V3 introduces a single stateful LangGraph investigation agent with:
+
+- A hosted-model provider abstraction
+- Azure OpenAI v1 API integration
+- Typed agent state and explicit routing
+- Bounded model-tool-model loops
+- One tool call per iteration
+- Parallel tool calls disabled
+- Application-owned tool execution
+- Structured diagnosis synthesis
+- Pydantic validation
+- Evidence citations
+- Insufficient-evidence outcomes
+
+The selected development deployment is `gpt-5.4-mini` using Azure Data Zone
+Standard in the APAC data zone. The model is configured through environment
+variables and can be replaced without redesigning the graph or deterministic
+tool layer.
+
+Hosted smoke tests are run manually so the normal automated test suite does not
+make billable external model calls.
+
 ## Engineering Document Corpus
 
 The V2 corpus contains three original synthetic documents:
@@ -160,18 +194,18 @@ Alembic maintains the `alembic_version` table to track the active database revis
 
 - Python 3.11
 - FastAPI
-- Pydantic
-- Pydantic Settings
+- Pydantic and Pydantic Settings
 - Uvicorn
 - SQLAlchemy 2.0
 - Alembic
 - SQLite
 - ChromaDB
 - Sentence Transformers
+- LangGraph
+- LangChain OpenAI
+- Microsoft Foundry / Azure OpenAI
 - pytest
 - Ruff
-
-LangGraph and the hosted LLM provider will be introduced in V3.
 
 ## Repository Structure
 
@@ -331,7 +365,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V0 - Foundation: complete
 - V1 - Industrial Data Layer: complete
 - V2 - Deterministic Tools: complete
-- V3 - GenAI and LangGraph Agent Core
+- V3 - GenAI and LangGraph Agent Core: complete
 - V4 - Grounded Maintenance Investigation
 - V5 - Human-in-the-Loop Actions
 - V6 - Application and Observability

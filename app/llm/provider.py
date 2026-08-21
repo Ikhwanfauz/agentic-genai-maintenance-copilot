@@ -1,5 +1,5 @@
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_openai import AzureChatOpenAI, ChatOpenAI
+from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from app.core.config import Settings, get_settings
@@ -24,6 +24,10 @@ def _require_text(value: str | None, environment_variable: str) -> str:
     return value.strip()
 
 
+def _build_azure_v1_base_url(endpoint: str) -> str:
+    return f"{endpoint.rstrip('/')}/openai/v1/"
+
+
 def create_chat_model(settings: Settings | None = None) -> BaseChatModel:
     resolved_settings = settings or get_settings()
 
@@ -36,6 +40,7 @@ def create_chat_model(settings: Settings | None = None) -> BaseChatModel:
         return ChatOpenAI(
             model=resolved_settings.llm_model,
             api_key=api_key,
+            reasoning_effort=resolved_settings.llm_reasoning_effort,
             timeout=resolved_settings.llm_timeout_seconds,
             max_retries=resolved_settings.llm_max_retries,
         )
@@ -52,16 +57,12 @@ def create_chat_model(settings: Settings | None = None) -> BaseChatModel:
         resolved_settings.azure_openai_deployment,
         "AZURE_OPENAI_DEPLOYMENT",
     )
-    api_version = _require_text(
-        resolved_settings.azure_openai_api_version,
-        "AZURE_OPENAI_API_VERSION",
-    )
 
-    return AzureChatOpenAI(
-        azure_endpoint=endpoint,
-        azure_deployment=deployment,
-        api_version=api_version,
+    return ChatOpenAI(
+        model=deployment,
+        base_url=_build_azure_v1_base_url(endpoint),
         api_key=api_key,
+        reasoning_effort=resolved_settings.llm_reasoning_effort,
         timeout=resolved_settings.llm_timeout_seconds,
         max_retries=resolved_settings.llm_max_retries,
     )
