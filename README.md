@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V4.3 - Grounded Synthesis Enforcement**
+Current version: **V4 - Grounded Maintenance Investigation Complete**
 
 Implemented:
 
@@ -34,6 +34,8 @@ Implemented:
 - Application-owned citation allowlist for structured synthesis
 - Deterministic diagnosis-reference validation and fail-closed abstention
 - Structured grounding audit result in LangGraph state
+- End-to-end grounded investigation scenarios with real SQLite and Chroma tools
+- Verified incomplete-evidence, tool-failure, out-of-scope, and no-mutation behavior
 - Automated tests with pytest
 - Code formatting and linting with Ruff
 
@@ -41,9 +43,9 @@ Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
 diagnosis generation, citation capture, and evidence-based abstention.
 
-V4 end-to-end investigation scenarios, V5 human-approved actions, agent REST
-endpoints, Streamlit UI, persisted observability, evaluation, Docker, and Azure
-application deployment are not yet implemented.
+V5 human-approved actions, agent REST endpoints, Streamlit UI, persisted
+observability, evaluation, Docker, and Azure application deployment are not yet
+implemented.
 
 ## Safety Boundary
 
@@ -236,6 +238,27 @@ This enforcement validates provenance, citation identity, source coverage, and
 asset scope. It does not claim deterministic semantic proof that every natural-
 language sentence is entailed by an evidence payload; that limitation remains
 explicit for truthful portfolio reporting.
+
+## V4.4 End-to-End Grounded Investigation Scenarios
+
+V4.4 validates the complete V4 workflow through LangGraph using deterministic fake
+models and real local application integrations. The scenario suite covers:
+
+- A complete P-101 investigation that sequentially executes all four real read-only
+  tools and returns a grounded structured diagnosis
+- An incomplete investigation whose claimed diagnosis is downgraded to
+  `insufficient_evidence`
+- A controlled real-tool failure whose output is excluded from the evidence ledger
+  and ends in safe abstention
+- An out-of-scope request that completes without tool execution
+- SQL and Chroma record-count checks before and after every scenario to prove the
+  investigation workflow remains read-only
+
+The tests use the deterministic seeded industrial dataset, a temporary file-backed
+SQLite database, an ephemeral Chroma collection, the synthetic engineering corpus,
+and the application-owned tool adapters. Fake models avoid billable hosted calls
+while preserving the real model-tool-model graph transitions and structured
+synthesis boundary.
 
 ## Engineering Document Corpus
 
@@ -455,7 +478,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V1 - Industrial Data Layer: complete
 - V2 - Deterministic Tools: complete
 - V3 - GenAI and LangGraph Agent Core: complete
-- V4 - Grounded Maintenance Investigation: in progress (V4.3 complete)
+- V4 - Grounded Maintenance Investigation: complete
 - V5 - Human-in-the-Loop Actions
 - V6 - Application and Observability
 - V7 - Evaluation and Reliability
