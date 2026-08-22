@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V3 - GenAI and LangGraph Agent Core**
+Current version: **V4.1 - Typed Evidence Ledger**
 
 Implemented:
 
@@ -27,6 +27,8 @@ Implemented:
 - Deterministic tool execution through application-owned adapters
 - Structured `MaintenanceDiagnosis` output
 - Evidence-aware insufficient-evidence behavior
+- Application-owned typed evidence ledger
+- Deterministic citation capture from all four read-only investigation tools
 - Automated tests with pytest
 - Code formatting and linting with Ruff
 
@@ -34,9 +36,9 @@ Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
 diagnosis generation, citation capture, and evidence-based abstention.
 
-V4 multi-source grounded investigation, V5 human-approved actions, agent REST
-endpoints, Streamlit UI, persisted observability, evaluation, Docker, and Azure
-application deployment are not yet implemented.
+V4 evidence-coverage policy and grounded-synthesis enforcement, V5 human-approved
+actions, agent REST endpoints, Streamlit UI, persisted observability, evaluation,
+Docker, and Azure application deployment are not yet implemented.
 
 ## Safety Boundary
 
@@ -49,6 +51,11 @@ sensor-analysis, and RAG operations.
 
 The structured diagnosis contract supports an `insufficient_evidence` outcome so
 the agent can abstain instead of inventing a fault or root cause.
+
+V4.1 additionally captures successful read-only tool outputs in a typed evidence
+ledger owned by the application. Asset, maintenance-record, sensor-metric, and
+engineering-document evidence receive traceable citations before later synthesis
+enforcement is introduced.
 
 Creating a proposed work order does not authorize physical maintenance.
 Application-level approval enforcement, duplicate-action protection, and
@@ -164,6 +171,23 @@ tool layer.
 
 Hosted smoke tests are run manually so the normal automated test suite does not
 make billable external model calls.
+
+## V4.1 Typed Evidence Ledger
+
+V4.1 begins the grounded maintenance-investigation layer by converting successful
+deterministic tool results into typed `CollectedEvidence` records stored in the
+LangGraph state.
+
+The ledger captures:
+
+- Asset evidence with `asset:<asset-code>` citations
+- Individual maintenance records with `maintenance_record:<record-id>` citations
+- Individual sensor metrics with `sensor:<asset-code>:<sensor-type>` citations
+- Engineering-document chunks with their original RAG citations preserved
+
+Failed tool messages are not accepted as evidence. Final diagnosis citation
+validation against this ledger belongs to a later V4 checkpoint and is not claimed
+as part of V4.1.
 
 ## Engineering Document Corpus
 
@@ -383,7 +407,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V1 - Industrial Data Layer: complete
 - V2 - Deterministic Tools: complete
 - V3 - GenAI and LangGraph Agent Core: complete
-- V4 - Grounded Maintenance Investigation
+- V4 - Grounded Maintenance Investigation: in progress (V4.1 complete)
 - V5 - Human-in-the-Loop Actions
 - V6 - Application and Observability
 - V7 - Evaluation and Reliability

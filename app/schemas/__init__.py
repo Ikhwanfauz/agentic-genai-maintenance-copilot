@@ -8,6 +8,7 @@ from app.schemas.diagnosis import (
     MaintenanceDiagnosis,
     RecommendedAction,
 )
+from app.schemas.evidence import CollectedEvidence
 from app.schemas.maintenance import (
     MaintenanceHistoryInput,
     MaintenanceHistoryOutput,
@@ -30,6 +31,7 @@ __all__ = [
     "AssetCodeInput",
     "AssetDetailsInput",
     "AssetDetailsOutput",
+    "CollectedEvidence",
     "DataQualitySummary",
     "DiagnosisConfidence",
     "EngineeringDocumentResult",

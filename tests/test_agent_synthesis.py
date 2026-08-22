@@ -21,9 +21,19 @@ from app.schemas.diagnosis import (
 def create_asset_tool() -> StructuredTool:
     def get_asset_details(asset_code: str) -> dict[str, object]:
         return {
+            "id": 1,
             "asset_code": asset_code,
             "name": "Main Cooling Water Pump",
+            "asset_type": "pump",
+            "status": "operational",
             "criticality": "critical",
+            "location": "Utilities Area",
+            "manufacturer": "FlowServe Simulation",
+            "model_number": "CS-200",
+            "installation_date": "2021-06-15",
+            "description": "Synthetic main cooling-water pump.",
+            "parent_asset_code": None,
+            "child_asset_codes": ["M-101"],
         }
 
     return StructuredTool.from_function(

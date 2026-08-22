@@ -22,6 +22,7 @@ def test_create_initial_state_normalizes_request() -> None:
     assert state["iteration_count"] == 0
     assert state["max_iterations"] == 6
     assert state["status"] == AgentStatus.PENDING
+    assert state["evidence_ledger"] == []
     assert isinstance(state["messages"][0], HumanMessage)
 
 

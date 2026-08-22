@@ -8,6 +8,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from app.schemas.diagnosis import MaintenanceDiagnosis
+from app.schemas.evidence import CollectedEvidence
 
 
 class AgentStatus(StrEnum):
@@ -39,6 +40,7 @@ class AgentState(TypedDict):
     route: AgentRoute | None
     visited_nodes: Annotated[list[str], add]
     error: str | None
+    evidence_ledger: Annotated[list[CollectedEvidence], add]
     diagnosis: MaintenanceDiagnosis | None
 
 
@@ -66,5 +68,6 @@ def create_initial_state(
         route=None,
         visited_nodes=[],
         error=None,
+        evidence_ledger=[],
         diagnosis=None,
     )

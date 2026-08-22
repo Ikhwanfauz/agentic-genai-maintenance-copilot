@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import Mock
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -52,9 +53,19 @@ def test_agent_executes_tool_and_returns_to_model() -> None:
     ]
     tool_function = Mock(
         return_value={
+            "id": 1,
             "asset_code": "P-101",
             "name": "Main Cooling Water Pump",
+            "asset_type": "pump",
+            "status": "operational",
             "criticality": "critical",
+            "location": "Utilities Area",
+            "manufacturer": "FlowServe Simulation",
+            "model_number": "CS-200",
+            "installation_date": date(2021, 6, 15).isoformat(),
+            "description": "Synthetic main cooling-water pump.",
+            "parent_asset_code": None,
+            "child_asset_codes": ["M-101"],
         }
     )
     asset_tool = create_asset_tool(tool_function)
@@ -87,6 +98,8 @@ def test_agent_executes_tool_and_returns_to_model() -> None:
     assert isinstance(result["messages"][2], ToolMessage)
     assert isinstance(result["messages"][3], AIMessage)
     assert "P-101" in result["messages"][2].content
+    assert len(result["evidence_ledger"]) == 1
+    assert result["evidence_ledger"][0].citation == "asset:P-101"
 
 
 def test_agent_does_not_execute_tool_at_iteration_boundary() -> None:
