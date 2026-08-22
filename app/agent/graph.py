@@ -6,6 +6,7 @@ from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph
 
 from app.agent.nodes import create_call_model_node
+from app.agent.policy import evaluate_evidence_coverage
 from app.agent.state import AgentRoute, AgentState, AgentStatus
 from app.agent.synthesis import create_synthesize_diagnosis_node
 from app.agent.tool_node import create_execute_tools_node
@@ -52,12 +53,16 @@ def route_after_model_with_synthesis(
     return END
 
 
-def mark_ready(_state: AgentState) -> dict[str, object]:
+def mark_ready(state: AgentState) -> dict[str, object]:
     return {
         "status": AgentStatus.READY,
         "route": AgentRoute.INVESTIGATE,
         "visited_nodes": ["mark_ready"],
         "error": None,
+        "evidence_coverage": evaluate_evidence_coverage(
+            state["evidence_ledger"],
+            state["asset_code"],
+        ),
     }
 
 

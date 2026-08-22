@@ -5,6 +5,7 @@ from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolNode
 
 from app.agent.evidence import collect_tool_evidence
+from app.agent.policy import evaluate_evidence_coverage
 from app.agent.state import AgentState, AgentStatus
 
 
@@ -24,10 +25,18 @@ def create_execute_tools_node(
             if isinstance(message, ToolMessage)
             for evidence in collect_tool_evidence(message)
         ]
+        updated_evidence_ledger = [
+            *state["evidence_ledger"],
+            *evidence_ledger,
+        ]
 
         return {
             "messages": result["messages"],
             "evidence_ledger": evidence_ledger,
+            "evidence_coverage": evaluate_evidence_coverage(
+                updated_evidence_ledger,
+                state["asset_code"],
+            ),
             "status": AgentStatus.RUNNING,
             "visited_nodes": ["execute_tools"],
         }

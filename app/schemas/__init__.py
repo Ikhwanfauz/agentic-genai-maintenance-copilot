@@ -9,6 +9,10 @@ from app.schemas.diagnosis import (
     RecommendedAction,
 )
 from app.schemas.evidence import CollectedEvidence
+from app.schemas.investigation import (
+    EvidenceCoverage,
+    EvidenceCoverageDecision,
+)
 from app.schemas.maintenance import (
     MaintenanceHistoryInput,
     MaintenanceHistoryOutput,
@@ -38,6 +42,8 @@ __all__ = [
     "EngineeringDocumentSearchInput",
     "EngineeringDocumentSearchOutput",
     "EvidenceReference",
+    "EvidenceCoverage",
+    "EvidenceCoverageDecision",
     "EvidenceSourceType",
     "InvestigationOutcome",
     "MaintenanceDiagnosis",

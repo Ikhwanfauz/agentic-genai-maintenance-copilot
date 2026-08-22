@@ -23,6 +23,7 @@ def test_create_initial_state_normalizes_request() -> None:
     assert state["max_iterations"] == 6
     assert state["status"] == AgentStatus.PENDING
     assert state["evidence_ledger"] == []
+    assert state["evidence_coverage"] is None
     assert isinstance(state["messages"][0], HumanMessage)
 
 
@@ -40,6 +41,8 @@ def test_state_flow_routes_valid_request_to_investigation() -> None:
     assert result["route"] == AgentRoute.INVESTIGATE
     assert result["visited_nodes"] == ["initialize", "mark_ready"]
     assert result["error"] is None
+    assert result["evidence_coverage"].decision == "incomplete"
+    assert len(result["evidence_coverage"].missing_sources) == 4
     assert len(result["messages"]) == 1
 
 

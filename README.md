@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V4.1 - Typed Evidence Ledger**
+Current version: **V4.2 - Evidence Coverage and Investigation Policy**
 
 Implemented:
 
@@ -29,6 +29,8 @@ Implemented:
 - Evidence-aware insufficient-evidence behavior
 - Application-owned typed evidence ledger
 - Deterministic citation capture from all four read-only investigation tools
+- Deterministic multi-source evidence-coverage policy
+- Asset-scoped coverage decisions with cross-asset evidence exclusion
 - Automated tests with pytest
 - Code formatting and linting with Ruff
 
@@ -36,9 +38,9 @@ Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
 diagnosis generation, citation capture, and evidence-based abstention.
 
-V4 evidence-coverage policy and grounded-synthesis enforcement, V5 human-approved
-actions, agent REST endpoints, Streamlit UI, persisted observability, evaluation,
-Docker, and Azure application deployment are not yet implemented.
+V4 grounded-synthesis enforcement, V5 human-approved actions, agent REST endpoints,
+Streamlit UI, persisted observability, evaluation, Docker, and Azure application
+deployment are not yet implemented.
 
 ## Safety Boundary
 
@@ -188,6 +190,26 @@ The ledger captures:
 Failed tool messages are not accepted as evidence. Final diagnosis citation
 validation against this ledger belongs to a later V4 checkpoint and is not claimed
 as part of V4.1.
+
+## V4.2 Evidence Coverage and Investigation Policy
+
+V4.2 adds a deterministic policy that evaluates whether the evidence ledger
+contains the minimum source categories for one asset-scoped investigation:
+
+- Asset details
+- Maintenance history
+- Sensor analysis
+- Engineering-document guidance
+
+The policy returns `ready`, `incomplete`, or `asset_scope_required`, together with
+covered and missing source categories. Evidence belonging to another asset is
+excluded from the target asset's coverage result. The policy is evaluated when an
+investigation becomes ready and recalculated after every tool execution.
+
+Evidence coverage only confirms that the required source categories are
+represented. It does not prove a root cause, validate model claims against
+citations, or authorize an application action. Those boundaries remain assigned to
+later checkpoints.
 
 ## Engineering Document Corpus
 
@@ -407,7 +429,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V1 - Industrial Data Layer: complete
 - V2 - Deterministic Tools: complete
 - V3 - GenAI and LangGraph Agent Core: complete
-- V4 - Grounded Maintenance Investigation: in progress (V4.1 complete)
+- V4 - Grounded Maintenance Investigation: in progress (V4.2 complete)
 - V5 - Human-in-the-Loop Actions
 - V6 - Application and Observability
 - V7 - Evaluation and Reliability

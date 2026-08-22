@@ -100,6 +100,8 @@ def test_agent_executes_tool_and_returns_to_model() -> None:
     assert "P-101" in result["messages"][2].content
     assert len(result["evidence_ledger"]) == 1
     assert result["evidence_ledger"][0].citation == "asset:P-101"
+    assert result["evidence_coverage"].decision == "incomplete"
+    assert len(result["evidence_coverage"].missing_sources) == 3
 
 
 def test_agent_does_not_execute_tool_at_iteration_boundary() -> None:
