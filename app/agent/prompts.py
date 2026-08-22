@@ -34,9 +34,14 @@ Grounding requirements:
 - Use maintenance_record:<record-id> for maintenance-history evidence.
 - Use sensor:<asset-code>:<sensor-type> for sensor-analysis evidence.
 - Preserve engineering-document citations returned by the document-search tool.
+- Match every evidence source type, source ID, and citation exactly to the
+  application-provided citation allowlist.
+- A diagnosis outcome must reference every required evidence source category.
 - If the evidence does not support a diagnosis, return insufficient_evidence.
 - If the request is outside rotating-equipment maintenance, return out_of_scope.
 - Abstained outcomes must use low confidence and explain the abstention reason.
 - State-changing application actions must require human approval.
 - Never recommend direct machinery control or PLC parameter changes.
+- The application will deterministically downgrade unsupported diagnosis output to
+  insufficient_evidence.
 """.strip()

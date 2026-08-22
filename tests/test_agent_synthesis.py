@@ -75,7 +75,7 @@ def create_diagnosis() -> MaintenanceDiagnosis:
     )
 
 
-def test_agent_stores_valid_structured_diagnosis() -> None:
+def test_agent_downgrades_diagnosis_when_coverage_is_incomplete() -> None:
     investigation_model = Mock()
     investigation_model.invoke.side_effect = [
         AIMessage(
@@ -111,6 +111,9 @@ def test_agent_stores_valid_structured_diagnosis() -> None:
     assert result["route"] == AgentRoute.END
     assert isinstance(result["diagnosis"], MaintenanceDiagnosis)
     assert result["diagnosis"].asset_code == "P-101"
+    assert result["diagnosis"].outcome == InvestigationOutcome.INSUFFICIENT_EVIDENCE
+    assert result["grounding_result"].downgraded is True
+    assert result["grounding_result"].decision == "abstained"
     assert result["visited_nodes"] == [
         "initialize",
         "mark_ready",

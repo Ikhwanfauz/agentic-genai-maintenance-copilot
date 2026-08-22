@@ -10,8 +10,10 @@ from app.schemas.diagnosis import (
 )
 from app.schemas.evidence import CollectedEvidence
 from app.schemas.investigation import (
+    DiagnosisGroundingResult,
     EvidenceCoverage,
     EvidenceCoverageDecision,
+    GroundingDecision,
 )
 from app.schemas.maintenance import (
     MaintenanceHistoryInput,
@@ -38,6 +40,7 @@ __all__ = [
     "CollectedEvidence",
     "DataQualitySummary",
     "DiagnosisConfidence",
+    "DiagnosisGroundingResult",
     "EngineeringDocumentResult",
     "EngineeringDocumentSearchInput",
     "EngineeringDocumentSearchOutput",
@@ -45,6 +48,7 @@ __all__ = [
     "EvidenceCoverage",
     "EvidenceCoverageDecision",
     "EvidenceSourceType",
+    "GroundingDecision",
     "InvestigationOutcome",
     "MaintenanceDiagnosis",
     "MaintenanceHistoryInput",

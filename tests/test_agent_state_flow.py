@@ -24,6 +24,7 @@ def test_create_initial_state_normalizes_request() -> None:
     assert state["status"] == AgentStatus.PENDING
     assert state["evidence_ledger"] == []
     assert state["evidence_coverage"] is None
+    assert state["grounding_result"] is None
     assert isinstance(state["messages"][0], HumanMessage)
 
 

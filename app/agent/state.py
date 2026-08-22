@@ -9,7 +9,10 @@ from typing_extensions import TypedDict
 
 from app.schemas.diagnosis import MaintenanceDiagnosis
 from app.schemas.evidence import CollectedEvidence
-from app.schemas.investigation import EvidenceCoverage
+from app.schemas.investigation import (
+    DiagnosisGroundingResult,
+    EvidenceCoverage,
+)
 
 
 class AgentStatus(StrEnum):
@@ -43,6 +46,7 @@ class AgentState(TypedDict):
     error: str | None
     evidence_ledger: Annotated[list[CollectedEvidence], add]
     evidence_coverage: EvidenceCoverage | None
+    grounding_result: DiagnosisGroundingResult | None
     diagnosis: MaintenanceDiagnosis | None
 
 
@@ -72,5 +76,6 @@ def create_initial_state(
         error=None,
         evidence_ledger=[],
         evidence_coverage=None,
+        grounding_result=None,
         diagnosis=None,
     )

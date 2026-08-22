@@ -12,6 +12,12 @@ class EvidenceCoverageDecision(StrEnum):
     ASSET_SCOPE_REQUIRED = "asset_scope_required"
 
 
+class GroundingDecision(StrEnum):
+    GROUNDED = "grounded"
+    ABSTAINED = "abstained"
+    OUT_OF_SCOPE = "out_of_scope"
+
+
 class EvidenceCoverage(BaseModel):
     """Deterministic coverage result for one asset investigation."""
 
@@ -56,3 +62,16 @@ class EvidenceCoverage(BaseModel):
             raise ValueError("Asset-scope-required coverage must not have a target asset.")
 
         return self
+
+
+class DiagnosisGroundingResult(BaseModel):
+    """Application-owned audit result for one structured diagnosis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision: GroundingDecision
+    original_outcome: str = Field(min_length=1, max_length=100)
+    final_outcome: str = Field(min_length=1, max_length=100)
+    matched_citations: list[str] = Field(default_factory=list)
+    violations: list[str] = Field(default_factory=list)
+    downgraded: bool

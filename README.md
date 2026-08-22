@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V4.2 - Evidence Coverage and Investigation Policy**
+Current version: **V4.3 - Grounded Synthesis Enforcement**
 
 Implemented:
 
@@ -31,6 +31,9 @@ Implemented:
 - Deterministic citation capture from all four read-only investigation tools
 - Deterministic multi-source evidence-coverage policy
 - Asset-scoped coverage decisions with cross-asset evidence exclusion
+- Application-owned citation allowlist for structured synthesis
+- Deterministic diagnosis-reference validation and fail-closed abstention
+- Structured grounding audit result in LangGraph state
 - Automated tests with pytest
 - Code formatting and linting with Ruff
 
@@ -38,9 +41,9 @@ Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
 diagnosis generation, citation capture, and evidence-based abstention.
 
-V4 grounded-synthesis enforcement, V5 human-approved actions, agent REST endpoints,
-Streamlit UI, persisted observability, evaluation, Docker, and Azure application
-deployment are not yet implemented.
+V4 end-to-end investigation scenarios, V5 human-approved actions, agent REST
+endpoints, Streamlit UI, persisted observability, evaluation, Docker, and Azure
+application deployment are not yet implemented.
 
 ## Safety Boundary
 
@@ -210,6 +213,29 @@ Evidence coverage only confirms that the required source categories are
 represented. It does not prove a root cause, validate model claims against
 citations, or authorize an application action. Those boundaries remain assigned to
 later checkpoints.
+
+## V4.3 Grounded Synthesis Enforcement
+
+V4.3 supplies structured synthesis with an application-owned citation allowlist
+containing only evidence metadata eligible for the target asset. A claimed
+diagnosis is accepted only when:
+
+- Evidence coverage is `ready` for the investigation target
+- The diagnosis asset matches the target asset
+- Every evidence reference exactly matches an eligible source type, source ID, and
+  citation
+- The diagnosis references every required evidence source category
+- Evidence references are not duplicated
+
+If any rule fails, the application replaces the claimed diagnosis with a
+low-confidence `insufficient_evidence` result and stores a structured grounding
+audit containing matched citations and validation violations. Model-selected
+`insufficient_evidence` and `out_of_scope` results remain supported.
+
+This enforcement validates provenance, citation identity, source coverage, and
+asset scope. It does not claim deterministic semantic proof that every natural-
+language sentence is entailed by an evidence payload; that limitation remains
+explicit for truthful portfolio reporting.
 
 ## Engineering Document Corpus
 
@@ -429,7 +455,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V1 - Industrial Data Layer: complete
 - V2 - Deterministic Tools: complete
 - V3 - GenAI and LangGraph Agent Core: complete
-- V4 - Grounded Maintenance Investigation: in progress (V4.2 complete)
+- V4 - Grounded Maintenance Investigation: in progress (V4.3 complete)
 - V5 - Human-in-the-Loop Actions
 - V6 - Application and Observability
 - V7 - Evaluation and Reliability
