@@ -1,3 +1,7 @@
+from app.schemas.actions import (
+    WorkOrderProposalInput,
+    WorkOrderProposalOutput,
+)
 from app.schemas.asset import AssetDetailsInput, AssetDetailsOutput
 from app.schemas.common import AssetCodeInput
 from app.schemas.diagnosis import (
@@ -59,4 +63,6 @@ __all__ = [
     "SensorAnalysisOutput",
     "SensorMetricOutput",
     "TrendDirection",
+    "WorkOrderProposalInput",
+    "WorkOrderProposalOutput",
 ]
