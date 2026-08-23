@@ -24,3 +24,46 @@ class WorkOrderProposalStateError(WorkOrderServiceError):
 
 class WorkOrderPersistenceError(WorkOrderServiceError):
     pass
+
+
+class WorkOrderNotFoundError(WorkOrderServiceError):
+    def __init__(self, work_order_id: int) -> None:
+        self.work_order_id = work_order_id
+        super().__init__(f"Work order '{work_order_id}' was not found.")
+
+
+class WorkOrderApprovalNotFoundError(WorkOrderServiceError):
+    def __init__(
+        self,
+        work_order_id: int,
+        request_version: int,
+    ) -> None:
+        self.work_order_id = work_order_id
+        self.request_version = request_version
+        super().__init__(
+            "Approval request for work order "
+            f"'{work_order_id}' version '{request_version}' was not found."
+        )
+
+
+class WorkOrderApprovalVersionConflictError(WorkOrderServiceError):
+    def __init__(
+        self,
+        requested_version: int,
+        current_version: int,
+    ) -> None:
+        self.requested_version = requested_version
+        self.current_version = current_version
+        super().__init__(
+            "Approval request version "
+            f"'{requested_version}' does not match current work-order "
+            f"revision '{current_version}'."
+        )
+
+
+class WorkOrderApprovalStateError(WorkOrderServiceError):
+    pass
+
+
+class WorkOrderApprovalConflictError(WorkOrderServiceError):
+    pass
