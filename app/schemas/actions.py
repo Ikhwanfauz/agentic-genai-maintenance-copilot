@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.enums import (
     ApprovalDecision,
@@ -133,3 +134,86 @@ class WorkOrderProposalOutput(AssetCodeInput):
     request_version: int = Field(gt=0)
     approval_scope: Literal["execute_work_order"] = "execute_work_order"
     created_new: bool
+
+
+class WorkOrderApprovalDecisionInput(BaseModel):
+    work_order_id: int = Field(gt=0)
+    request_version: int = Field(gt=0)
+    decision: Literal[
+        ApprovalDecision.APPROVED,
+        ApprovalDecision.REJECTED,
+    ]
+    decided_by: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    decision_reason: str = Field(
+        min_length=5,
+        max_length=2000,
+    )
+    decision_source: Literal["human"] = "human"
+    approval_scope: Literal["execute_work_order"] = "execute_work_order"
+
+    @field_validator(
+        "decided_by",
+        mode="before",
+    )
+    @classmethod
+    def strip_decider_identifier(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+
+        return value
+
+    @field_validator(
+        "decision_reason",
+        mode="before",
+    )
+    @classmethod
+    def normalize_decision_reason(cls, value: object) -> object:
+        if isinstance(value, str):
+            return " ".join(value.split())
+
+        return value
+
+
+class WorkOrderApprovalDecisionOutput(BaseModel):
+    work_order_id: int = Field(gt=0)
+    work_order_number: str = Field(
+        min_length=1,
+        max_length=30,
+    )
+    approval_id: int = Field(gt=0)
+    request_version: int = Field(gt=0)
+    decision: Literal[
+        ApprovalDecision.APPROVED,
+        ApprovalDecision.REJECTED,
+    ]
+    work_order_status: Literal[
+        WorkOrderStatus.APPROVED,
+        WorkOrderStatus.REJECTED,
+    ]
+    decided_by: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    decided_at: datetime
+    decision_reason: str = Field(
+        min_length=5,
+        max_length=2000,
+    )
+    approval_scope: Literal["execute_work_order"] = "execute_work_order"
+    decision_applied: bool
+
+    @model_validator(mode="after")
+    def enforce_decision_status_mapping(self) -> Self:
+        expected_status = (
+            WorkOrderStatus.APPROVED
+            if self.decision == ApprovalDecision.APPROVED
+            else WorkOrderStatus.REJECTED
+        )
+
+        if self.work_order_status != expected_status:
+            raise ValueError("The work-order status must match the human approval decision.")
+
+        return self

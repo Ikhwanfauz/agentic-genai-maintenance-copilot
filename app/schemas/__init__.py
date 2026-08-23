@@ -1,4 +1,6 @@
 from app.schemas.actions import (
+    WorkOrderApprovalDecisionInput,
+    WorkOrderApprovalDecisionOutput,
     WorkOrderProposalInput,
     WorkOrderProposalOutput,
 )
@@ -65,4 +67,6 @@ __all__ = [
     "TrendDirection",
     "WorkOrderProposalInput",
     "WorkOrderProposalOutput",
+    "WorkOrderApprovalDecisionInput",
+    "WorkOrderApprovalDecisionOutput",
 ]

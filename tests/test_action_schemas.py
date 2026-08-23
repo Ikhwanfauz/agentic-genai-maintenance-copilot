@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from pydantic import ValidationError
 
@@ -7,6 +9,8 @@ from app.models.enums import (
     WorkOrderStatus,
 )
 from app.schemas.actions import (
+    WorkOrderApprovalDecisionInput,
+    WorkOrderApprovalDecisionOutput,
     WorkOrderProposalInput,
     WorkOrderProposalOutput,
 )
@@ -180,5 +184,90 @@ def test_proposal_output_requires_pending_states() -> None:
             **{
                 **output.model_dump(),
                 "status": WorkOrderStatus.APPROVED,
+            }
+        )
+
+
+def create_approval_decision_input(
+    **overrides: object,
+) -> WorkOrderApprovalDecisionInput:
+    values: dict[str, object] = {
+        "work_order_id": 10,
+        "request_version": 1,
+        "decision": ApprovalDecision.APPROVED,
+        "decided_by": " technician-001 ",
+        "decision_reason": "  Inspection plan reviewed and approved.  ",
+        "decision_source": "human",
+        "approval_scope": "execute_work_order",
+    }
+    values.update(overrides)
+
+    return WorkOrderApprovalDecisionInput.model_validate(values)
+
+
+def test_human_approval_decision_is_accepted_and_normalized() -> None:
+    approval = create_approval_decision_input()
+
+    assert approval.decision == ApprovalDecision.APPROVED
+    assert approval.decided_by == "technician-001"
+    assert approval.decision_reason == "Inspection plan reviewed and approved."
+    assert approval.decision_source == "human"
+
+
+def test_human_rejection_decision_is_accepted() -> None:
+    approval = create_approval_decision_input(
+        decision=ApprovalDecision.REJECTED,
+        decision_reason="Work scope requires further technical review.",
+    )
+
+    assert approval.decision == ApprovalDecision.REJECTED
+
+
+def test_pending_is_not_a_human_decision() -> None:
+    with pytest.raises(ValidationError):
+        create_approval_decision_input(
+            decision=ApprovalDecision.PENDING,
+        )
+
+
+def test_agent_cannot_identify_as_approval_source() -> None:
+    with pytest.raises(ValidationError):
+        create_approval_decision_input(
+            decision_source="agent",
+        )
+
+
+def test_approval_decision_requires_a_reason() -> None:
+    with pytest.raises(ValidationError):
+        create_approval_decision_input(
+            decision_reason="   ",
+        )
+
+
+def test_approval_output_requires_matching_work_order_status() -> None:
+    output = WorkOrderApprovalDecisionOutput(
+        work_order_id=10,
+        work_order_number="WO-PROP-0010",
+        approval_id=5,
+        request_version=1,
+        decision=ApprovalDecision.APPROVED,
+        work_order_status=WorkOrderStatus.APPROVED,
+        decided_by="technician-001",
+        decided_at=datetime(2026, 8, 23, 17, 30, tzinfo=UTC),
+        decision_reason="Inspection plan reviewed and approved.",
+        approval_scope="execute_work_order",
+        decision_applied=True,
+    )
+
+    assert output.work_order_status == WorkOrderStatus.APPROVED
+
+    with pytest.raises(
+        ValidationError,
+        match="status must match",
+    ):
+        WorkOrderApprovalDecisionOutput(
+            **{
+                **output.model_dump(),
+                "work_order_status": WorkOrderStatus.REJECTED,
             }
         )
