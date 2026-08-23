@@ -20,7 +20,14 @@ from app.models.enums import (
 from app.models.work_order import WorkOrder
 from app.schemas.actions import WorkOrderApprovalDecisionInput
 from app.services.approvals import decide_work_order_approval
-from app.services.exceptions import WorkOrderApprovalConflictError
+from app.services.exceptions import (
+    WorkOrderApprovalConflictError,
+    WorkOrderApprovalExpiredError,
+    WorkOrderApprovalNotFoundError,
+    WorkOrderApprovalStateError,
+    WorkOrderApprovalVersionConflictError,
+    WorkOrderNotFoundError,
+)
 
 
 @pytest.fixture
@@ -70,13 +77,15 @@ def database_session() -> Generator[Session, None, None]:
 
 def create_decision_input(
     *,
+    work_order_id: int = 1,
+    request_version: int = 1,
     decision: ApprovalDecision = ApprovalDecision.APPROVED,
     decided_by: str = "technician-001",
     decision_reason: str = "Inspection plan reviewed and approved.",
 ) -> WorkOrderApprovalDecisionInput:
     return WorkOrderApprovalDecisionInput(
-        work_order_id=1,
-        request_version=1,
+        work_order_id=work_order_id,
+        request_version=request_version,
         decision=decision,
         decided_by=decided_by,
         decision_reason=decision_reason,
@@ -189,3 +198,155 @@ def test_conflicting_second_decision_is_rejected(
     assert approval is not None
     assert work_order.status == WorkOrderStatus.APPROVED
     assert approval.decision == ApprovalDecision.APPROVED
+
+
+def test_unknown_work_order_is_rejected(
+    database_session: Session,
+) -> None:
+    with pytest.raises(
+        WorkOrderNotFoundError,
+        match="999",
+    ):
+        decide_work_order_approval(
+            database_session,
+            create_decision_input(
+                work_order_id=999,
+            ),
+        )
+
+
+def test_stale_request_version_is_rejected(
+    database_session: Session,
+) -> None:
+    with pytest.raises(
+        WorkOrderApprovalVersionConflictError,
+        match="does not match",
+    ):
+        decide_work_order_approval(
+            database_session,
+            create_decision_input(
+                request_version=2,
+            ),
+        )
+
+    work_order = database_session.get(WorkOrder, 1)
+    approval = database_session.get(Approval, 1)
+
+    assert work_order is not None
+    assert approval is not None
+    assert work_order.status == WorkOrderStatus.PENDING_APPROVAL
+    assert approval.decision == ApprovalDecision.PENDING
+
+
+def test_missing_approval_record_is_rejected(
+    database_session: Session,
+) -> None:
+    approval = database_session.get(Approval, 1)
+
+    assert approval is not None
+
+    database_session.delete(approval)
+    database_session.commit()
+
+    with pytest.raises(
+        WorkOrderApprovalNotFoundError,
+        match="was not found",
+    ):
+        decide_work_order_approval(
+            database_session,
+            create_decision_input(),
+        )
+
+    work_order = database_session.get(WorkOrder, 1)
+
+    assert work_order is not None
+    assert work_order.status == WorkOrderStatus.PENDING_APPROVAL
+
+
+def test_wrong_approval_scope_is_rejected(
+    database_session: Session,
+) -> None:
+    approval = database_session.get(Approval, 1)
+
+    assert approval is not None
+
+    approval.approval_scope = "review_only"
+    database_session.commit()
+
+    with pytest.raises(
+        WorkOrderApprovalStateError,
+        match="scope does not match",
+    ):
+        decide_work_order_approval(
+            database_session,
+            create_decision_input(),
+        )
+
+    work_order = database_session.get(WorkOrder, 1)
+
+    assert work_order is not None
+    assert work_order.status == WorkOrderStatus.PENDING_APPROVAL
+    assert approval.decision == ApprovalDecision.PENDING
+
+
+def test_expired_approval_request_is_rejected(
+    database_session: Session,
+) -> None:
+    approval = database_session.get(Approval, 1)
+
+    assert approval is not None
+
+    approval.expires_at = datetime(2026, 8, 23, 17, 0, tzinfo=UTC)
+    database_session.commit()
+
+    with pytest.raises(
+        WorkOrderApprovalExpiredError,
+        match="has expired",
+    ):
+        decide_work_order_approval(
+            database_session,
+            create_decision_input(),
+            decision_clock=lambda: datetime(
+                2026,
+                8,
+                23,
+                18,
+                0,
+                tzinfo=UTC,
+            ),
+        )
+
+    work_order = database_session.get(WorkOrder, 1)
+
+    assert work_order is not None
+    assert work_order.status == WorkOrderStatus.PENDING_APPROVAL
+    assert approval.decision == ApprovalDecision.PENDING
+    assert approval.decided_at is None
+
+
+def test_timezone_naive_decision_clock_is_rejected(
+    database_session: Session,
+) -> None:
+    with pytest.raises(
+        WorkOrderApprovalStateError,
+        match="timezone information",
+    ):
+        decide_work_order_approval(
+            database_session,
+            create_decision_input(),
+            decision_clock=lambda: datetime(
+                2026,
+                8,
+                23,
+                18,
+                0,
+            ),
+        )
+
+    work_order = database_session.get(WorkOrder, 1)
+    approval = database_session.get(Approval, 1)
+
+    assert work_order is not None
+    assert approval is not None
+    assert work_order.status == WorkOrderStatus.PENDING_APPROVAL
+    assert approval.decision == ApprovalDecision.PENDING

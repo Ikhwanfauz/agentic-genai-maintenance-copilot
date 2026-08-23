@@ -1,6 +1,7 @@
 from app.services.approvals import decide_work_order_approval
 from app.services.exceptions import (
     WorkOrderApprovalConflictError,
+    WorkOrderApprovalExpiredError,
     WorkOrderApprovalNotFoundError,
     WorkOrderApprovalStateError,
     WorkOrderApprovalVersionConflictError,
@@ -18,6 +19,7 @@ from app.services.work_orders import (
 
 __all__ = [
     "WorkOrderApprovalConflictError",
+    "WorkOrderApprovalExpiredError",
     "WorkOrderApprovalNotFoundError",
     "WorkOrderApprovalStateError",
     "WorkOrderApprovalVersionConflictError",

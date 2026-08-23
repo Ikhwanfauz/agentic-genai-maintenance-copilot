@@ -67,3 +67,17 @@ class WorkOrderApprovalStateError(WorkOrderServiceError):
 
 class WorkOrderApprovalConflictError(WorkOrderServiceError):
     pass
+
+
+class WorkOrderApprovalExpiredError(WorkOrderServiceError):
+    def __init__(
+        self,
+        work_order_id: int,
+        request_version: int,
+    ) -> None:
+        self.work_order_id = work_order_id
+        self.request_version = request_version
+        super().__init__(
+            "Approval request for work order "
+            f"'{work_order_id}' version '{request_version}' has expired."
+        )

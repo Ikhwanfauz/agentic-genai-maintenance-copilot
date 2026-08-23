@@ -17,6 +17,7 @@ from app.schemas.actions import (
 )
 from app.services.exceptions import (
     WorkOrderApprovalConflictError,
+    WorkOrderApprovalExpiredError,
     WorkOrderApprovalNotFoundError,
     WorkOrderApprovalStateError,
     WorkOrderApprovalVersionConflictError,
@@ -161,6 +162,17 @@ def decide_work_order_approval(
             raise WorkOrderApprovalStateError(
                 "Approval decision timestamps must include timezone information."
             )
+
+        decided_at = _normalize_utc_timestamp(decided_at)
+
+        if approval.expires_at is not None:
+            expires_at = _normalize_utc_timestamp(approval.expires_at)
+
+            if decided_at >= expires_at:
+                raise WorkOrderApprovalExpiredError(
+                    work_order.id,
+                    approval.request_version,
+                )
 
         approval.decision = decision_input.decision
         approval.decided_by = decision_input.decided_by
