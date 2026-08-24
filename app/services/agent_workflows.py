@@ -26,12 +26,18 @@ from app.schemas.diagnosis import (
 )
 from app.schemas.hitl import WorkOrderApprovalInterrupt
 from app.services.exceptions import (
+    AgentRunNotFoundError,
     AgentWorkflowExecutionError,
     AgentWorkflowPersistenceError,
+    AgentWorkflowStateError,
 )
 
 WorkflowClock = Callable[[], datetime]
 RunIdFactory = Callable[[], str]
+
+
+class AgentGraphSnapshot(Protocol):
+    values: Mapping[str, object]
 
 
 class AgentGraph(Protocol):
@@ -41,6 +47,11 @@ class AgentGraph(Protocol):
         *,
         config: dict[str, object],
     ) -> Mapping[str, object]: ...
+
+    def get_state(
+        self,
+        config: dict[str, object],
+    ) -> AgentGraphSnapshot: ...
 
 
 def utc_now() -> datetime:
@@ -54,6 +65,13 @@ def generate_run_id() -> str:
 def _normalize_utc_timestamp(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("Agent workflow timestamps must include timezone information.")
+
+    return value.astimezone(UTC)
+
+
+def _restore_utc_timestamp(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=UTC)
 
     return value.astimezone(UTC)
 
@@ -285,6 +303,132 @@ def start_agent_investigation(
         thread_id=run.thread_id,
         status=run.status,
         started_at=run.started_at,
+        completed_at=completed_at,
+        diagnosis=diagnosis,
+        work_order_proposal=proposal,
+        approval_interrupt=approval_interrupt,
+        approval_decision=approval_decision,
+        final_response=run.final_response,
+        error_type=run.error_type,
+        error_message=run.error_message,
+    )
+
+
+def _load_checkpoint_values(
+    graph: AgentGraph,
+    run: AgentRun,
+) -> Mapping[str, object]:
+    config: dict[str, object] = {
+        "configurable": {
+            "thread_id": run.thread_id,
+        }
+    }
+
+    try:
+        snapshot = graph.get_state(config)
+    except Exception as error:
+        if run.status == AgentRunStatus.FAILED:
+            return {}
+
+        raise AgentWorkflowStateError(
+            f"Checkpoint state for agent run '{run.id}' could not be loaded."
+        ) from error
+
+    values = snapshot.values
+
+    if not values:
+        if run.status == AgentRunStatus.FAILED:
+            return {}
+
+        raise AgentWorkflowStateError(f"Checkpoint state for agent run '{run.id}' was not found.")
+
+    if values.get("run_id") != run.id:
+        raise AgentWorkflowStateError(
+            "Checkpoint run identity does not match the persisted agent run."
+        )
+
+    if values.get("thread_id") != run.thread_id:
+        raise AgentWorkflowStateError(
+            "Checkpoint thread identity does not match the persisted agent run."
+        )
+
+    return values
+
+
+def get_agent_run(
+    database_session: Session,
+    graph: AgentGraph,
+    run_id: str,
+) -> AgentRunResponse:
+    normalized_run_id = run_id.strip()
+
+    if not normalized_run_id:
+        raise AgentRunNotFoundError(run_id)
+
+    try:
+        run = database_session.get(
+            AgentRun,
+            normalized_run_id,
+        )
+    except SQLAlchemyError as error:
+        database_session.rollback()
+        raise AgentWorkflowPersistenceError("The agent-run database query failed.") from error
+
+    if run is None:
+        raise AgentRunNotFoundError(normalized_run_id)
+
+    checkpoint_values = _load_checkpoint_values(
+        graph,
+        run,
+    )
+
+    diagnosis: MaintenanceDiagnosis | None = None
+    proposal: WorkOrderProposalOutput | None = None
+    approval_interrupt: WorkOrderApprovalInterrupt | None = None
+    approval_decision: WorkOrderApprovalDecisionOutput | None = None
+
+    if checkpoint_values:
+        if run.status == AgentRunStatus.FAILED:
+            diagnosis = _validate_optional_model(
+                MaintenanceDiagnosis,
+                checkpoint_values.get("diagnosis"),
+            )
+            proposal = _validate_optional_model(
+                WorkOrderProposalOutput,
+                checkpoint_values.get("work_order_proposal"),
+            )
+            approval_interrupt = _validate_optional_model(
+                WorkOrderApprovalInterrupt,
+                checkpoint_values.get("approval_interrupt"),
+            )
+            approval_decision = _validate_optional_model(
+                WorkOrderApprovalDecisionOutput,
+                checkpoint_values.get("approval_decision"),
+            )
+        else:
+            (
+                checkpoint_status,
+                diagnosis,
+                proposal,
+                approval_interrupt,
+                approval_decision,
+                _checkpoint_error,
+            ) = _validate_graph_result(checkpoint_values)
+
+            if checkpoint_status != run.status:
+                raise AgentWorkflowStateError(
+                    "Checkpoint status does not match the persisted agent-run status."
+                )
+
+    completed_at = (
+        _restore_utc_timestamp(run.completed_at) if run.completed_at is not None else None
+    )
+
+    return AgentRunResponse(
+        run_id=run.id,
+        thread_id=run.thread_id,
+        status=run.status,
+        started_at=_restore_utc_timestamp(run.started_at),
         completed_at=completed_at,
         diagnosis=diagnosis,
         work_order_proposal=proposal,

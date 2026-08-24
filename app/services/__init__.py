@@ -1,9 +1,14 @@
-from app.services.agent_workflows import start_agent_investigation
+from app.services.agent_workflows import (
+    get_agent_run,
+    start_agent_investigation,
+)
 from app.services.approvals import decide_work_order_approval
 from app.services.exceptions import (
+    AgentRunNotFoundError,
     AgentWorkflowExecutionError,
     AgentWorkflowPersistenceError,
     AgentWorkflowServiceError,
+    AgentWorkflowStateError,
     WorkOrderApprovalConflictError,
     WorkOrderApprovalExpiredError,
     WorkOrderApprovalNotFoundError,
@@ -15,10 +20,6 @@ from app.services.exceptions import (
     WorkOrderPersistenceError,
     WorkOrderProposalStateError,
     WorkOrderServiceError,
-)
-from app.services.work_orders import (
-    generate_work_order_number,
-    propose_work_order,
 )
 
 __all__ = [
@@ -40,4 +41,7 @@ __all__ = [
     "AgentWorkflowPersistenceError",
     "AgentWorkflowServiceError",
     "start_agent_investigation",
+    "AgentRunNotFoundError",
+    "AgentWorkflowStateError",
+    "get_agent_run",
 ]

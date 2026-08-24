@@ -87,6 +87,16 @@ class AgentWorkflowServiceError(Exception):
     """Base exception for agent workflow application services."""
 
 
+class AgentRunNotFoundError(AgentWorkflowServiceError):
+    def __init__(self, run_id: str) -> None:
+        self.run_id = run_id
+        super().__init__(f"Agent run '{run_id}' was not found.")
+
+
+class AgentWorkflowStateError(AgentWorkflowServiceError):
+    pass
+
+
 class AgentWorkflowExecutionError(AgentWorkflowServiceError):
     def __init__(
         self,
