@@ -1,15 +1,27 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Literal
 
 from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 
+from app.agent.approval import (
+    await_work_order_approval,
+    prepare_approval_pause,
+)
 from app.agent.nodes import create_call_model_node
 from app.agent.policy import evaluate_evidence_coverage
 from app.agent.state import AgentRoute, AgentState, AgentStatus
 from app.agent.synthesis import create_synthesize_diagnosis_node
 from app.agent.tool_node import create_execute_tools_node
+from app.schemas.diagnosis import InvestigationOutcome
+from app.schemas.investigation import GroundingDecision
+
+WorkOrderProposalNode = Callable[
+    [AgentState],
+    dict[str, object],
+]
 
 
 def initialize_request(_state: AgentState) -> dict[str, object]:
@@ -49,6 +61,33 @@ def route_after_model_with_synthesis(
 
     if state["route"] == AgentRoute.SYNTHESIZE:
         return "synthesize_diagnosis"
+
+    return END
+
+
+def route_grounded_diagnosis_to_proposal(
+    state: AgentState,
+) -> Literal["propose_work_order", "__end__"]:
+    diagnosis = state["diagnosis"]
+    grounding_result = state["grounding_result"]
+
+    if (
+        diagnosis is not None
+        and diagnosis.outcome == InvestigationOutcome.DIAGNOSIS
+        and grounding_result is not None
+        and grounding_result.decision == GroundingDecision.GROUNDED
+        and not grounding_result.downgraded
+    ):
+        return "propose_work_order"
+
+    return END
+
+
+def route_proposal_to_approval(
+    state: AgentState,
+) -> Literal["prepare_approval_pause", "__end__"]:
+    if state["work_order_proposal"] is not None:
+        return "prepare_approval_pause"
 
     return END
 
@@ -95,7 +134,15 @@ def build_agent_graph(
     tools: Sequence[BaseTool] = (),
     *,
     diagnosis_model: Runnable | None = None,
+    proposal_node: WorkOrderProposalNode | None = None,
+    checkpointer: BaseCheckpointSaver | None = None,
 ):
+
+    if proposal_node is not None and diagnosis_model is None:
+        raise ValueError("A work-order proposal node requires a diagnosis model.")
+
+    if proposal_node is not None and checkpointer is None:
+        raise ValueError("A work-order proposal node requires a LangGraph checkpointer.")
     builder = StateGraph(AgentState)
 
     builder.add_node("initialize", initialize_request)
@@ -133,6 +180,42 @@ def build_agent_graph(
             "call_model",
             route_after_model_with_synthesis,
         )
-        builder.add_edge("synthesize_diagnosis", END)
+        if proposal_node is None:
+            builder.add_edge(
+                "synthesize_diagnosis",
+                END,
+            )
+        else:
+            builder.add_node(
+                "propose_work_order",
+                proposal_node,
+            )
+            builder.add_node(
+                "prepare_approval_pause",
+                prepare_approval_pause,
+            )
+            builder.add_node(
+                "await_work_order_approval",
+                await_work_order_approval,
+            )
 
-    return builder.compile()
+            builder.add_conditional_edges(
+                "synthesize_diagnosis",
+                route_grounded_diagnosis_to_proposal,
+            )
+            builder.add_conditional_edges(
+                "propose_work_order",
+                route_proposal_to_approval,
+            )
+            builder.add_edge(
+                "prepare_approval_pause",
+                "await_work_order_approval",
+            )
+            builder.add_edge(
+                "await_work_order_approval",
+                END,
+            )
+
+    return builder.compile(
+        checkpointer=checkpointer,
+    )
