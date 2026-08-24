@@ -5,6 +5,7 @@ from typing import TypeAlias
 from sqlalchemy.orm import Session
 
 from app.agent.state import AgentState
+from app.models.agent_log import AgentStep
 from app.models.common import utc_now
 from app.models.enums import (
     AgentStepStatus,
@@ -22,6 +23,16 @@ AgentNode: TypeAlias = Callable[
 ]
 DatabaseSessionFactory: TypeAlias = Callable[[], Session]
 ObservabilityClock: TypeAlias = Callable[[], datetime]
+ObservedNodeSuccess: TypeAlias = Callable[
+    [
+        AgentState,
+        dict[str, object],
+        AgentStep,
+        datetime,
+        datetime,
+    ],
+    None,
+]
 
 
 def _duration_ms(
@@ -44,13 +55,13 @@ def _persist_step(
     started_at: datetime,
     completed_at: datetime,
     error: Exception | None = None,
-) -> None:
+) -> AgentStep:
     with session_factory() as database_session:
         step_number = get_next_agent_step_number(
             database_session,
             run_id,
         )
-        record_agent_step(
+        return record_agent_step(
             database_session,
             AgentStepRecordInput(
                 run_id=run_id,
@@ -77,6 +88,7 @@ def create_observed_node(
     step_type: AgentStepType,
     summary: str,
     observability_clock: ObservabilityClock = utc_now,
+    on_success: ObservedNodeSuccess | None = None,
 ) -> AgentNode:
     normalized_summary = " ".join(summary.split())
 
@@ -112,7 +124,7 @@ def create_observed_node(
             raise
 
         completed_at = observability_clock()
-        _persist_step(
+        step = _persist_step(
             session_factory,
             run_id=state["run_id"],
             step_type=step_type,
@@ -121,6 +133,15 @@ def create_observed_node(
             started_at=started_at,
             completed_at=completed_at,
         )
+
+        if on_success is not None:
+            on_success(
+                state,
+                result,
+                step,
+                started_at,
+                completed_at,
+            )
 
         return result
 

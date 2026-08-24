@@ -12,11 +12,17 @@ from app.agent.approval import (
     prepare_approval_pause,
 )
 from app.agent.nodes import create_call_model_node
-from app.agent.observability import create_observed_node
+from app.agent.observability import (
+    ObservedNodeSuccess,
+    create_observed_node,
+)
 from app.agent.policy import evaluate_evidence_coverage
 from app.agent.state import AgentRoute, AgentState, AgentStatus
 from app.agent.synthesis import create_synthesize_diagnosis_node
 from app.agent.tool_node import create_execute_tools_node
+from app.agent.tool_observability import (
+    create_tool_call_observer,
+)
 from app.models.enums import AgentStepType
 from app.schemas.diagnosis import InvestigationOutcome
 from app.schemas.investigation import GroundingDecision
@@ -32,6 +38,7 @@ def _observe_node(
     *,
     step_type: AgentStepType,
     summary: str,
+    on_success: ObservedNodeSuccess | None = None,
 ) -> AgentNode:
     if session_factory is None:
         return node
@@ -41,6 +48,7 @@ def _observe_node(
         session_factory,
         step_type=step_type,
         summary=summary,
+        on_success=on_success,
     )
 
 
@@ -193,11 +201,17 @@ def build_agent_graph(
         step_type=AgentStepType.TOOL_SELECTION,
         summary="Selected the next maintenance investigation action.",
     )
+    tool_call_observer = (
+        create_tool_call_observer(observability_session_factory)
+        if observability_session_factory is not None
+        else None
+    )
     execute_tools_node = _observe_node(
         create_execute_tools_node(tools),
         observability_session_factory,
         step_type=AgentStepType.TOOL_EXECUTION,
         summary="Executed a deterministic investigation tool.",
+        on_success=tool_call_observer,
     )
 
     builder.add_node(
