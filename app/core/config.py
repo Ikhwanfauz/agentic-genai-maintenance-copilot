@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = 8000
     database_url: str = "sqlite:///./data/maintenance_copilot.db"
+    langgraph_checkpoint_path: str = "./data/langgraph_checkpoints.sqlite"
 
     engineering_docs_path: str = "./data/engineering_docs"
     vector_store_path: str = "./data/chroma"

@@ -5,6 +5,7 @@ from app.agent.state import (
     AgentState,
     AgentStatus,
 )
+from app.schemas.actions import WorkOrderProposalOutput
 from app.schemas.hitl import (
     WorkOrderApprovalInterrupt,
     WorkOrderApprovalResume,
@@ -38,12 +39,23 @@ def _validate_resume_matches_interrupt(
     state: AgentState,
     resume: WorkOrderApprovalResume,
 ) -> None:
-    approval_interrupt = state["approval_interrupt"]
-    proposal = state["work_order_proposal"]
+    approval_interrupt_value = state["approval_interrupt"]
+    proposal_value = state["work_order_proposal"]
 
-    if approval_interrupt is None or proposal is None:
+    if approval_interrupt_value is None or proposal_value is None:
         raise ValueError("Approval resume requires an existing approval interrupt.")
 
+    approval_interrupt = WorkOrderApprovalInterrupt.model_validate(approval_interrupt_value)
+    proposal = WorkOrderProposalOutput.model_validate(proposal_value)
+
+    if (
+        approval_interrupt.run_id != state["run_id"]
+        or approval_interrupt.thread_id != state["thread_id"]
+    ):
+        raise ValueError("Stored approval interrupt identity does not match agent state.")
+
+    if approval_interrupt.proposal != proposal:
+        raise ValueError("Stored approval interrupt proposal does not match agent state.")
     if resume.run_id != state["run_id"]:
         raise ValueError("Approval resume run does not match the interrupted run.")
 
@@ -71,11 +83,12 @@ def _validate_resume_matches_interrupt(
 def await_work_order_approval(
     state: AgentState,
 ) -> dict[str, object]:
-    approval_interrupt = state["approval_interrupt"]
+    approval_interrupt_value = state["approval_interrupt"]
 
-    if approval_interrupt is None:
+    if approval_interrupt_value is None:
         raise ValueError("Approval interrupt payload must be prepared before waiting.")
 
+    approval_interrupt = WorkOrderApprovalInterrupt.model_validate(approval_interrupt_value)
     resume_value = interrupt(approval_interrupt.model_dump(mode="json"))
     resume = WorkOrderApprovalResume.model_validate(resume_value)
 
