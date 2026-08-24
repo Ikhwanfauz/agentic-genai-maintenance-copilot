@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V4 - Grounded Maintenance Investigation Complete**
+Current version: **V5 - Human-in-the-Loop Actions Complete**
 
 Implemented:
 
@@ -36,16 +36,30 @@ Implemented:
 - Structured grounding audit result in LangGraph state
 - End-to-end grounded investigation scenarios with real SQLite and Chroma tools
 - Verified incomplete-evidence, tool-failure, out-of-scope, and no-mutation behavior
+- Grounded work-order proposal contracts
+- Deterministic work-order and pending-approval persistence
+- Proposal idempotency and conflicting-payload protection
+- Typed human approval and rejection contracts
+- Deterministic approval state-transition enforcement
+- Approval revision, scope, expiry, and conflict guards
+- Native LangGraph human-in-the-loop interrupts
+- Typed approval pause and resume payloads
+- Durable SQLite-backed LangGraph checkpointing
+- Strict checkpoint deserialization with Pydantic revalidation
+- Correctable re-interrupt behavior for invalid resume payloads
+- End-to-end approved and rejected work-order journeys
+- Application-level approval without physical execution
 - Automated tests with pytest
 - Code formatting and linting with Ruff
+- 146 automated tests at the verified V5 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
 diagnosis generation, citation capture, and evidence-based abstention.
 
-V5 human-approved actions, agent REST endpoints, Streamlit UI, persisted
-observability, evaluation, Docker, and Azure application deployment are not yet
-implemented.
+V5 human-approved application actions are complete. Agent REST endpoints,
+Streamlit UI, persisted runtime observability, evaluation, Docker, and Azure
+application deployment remain assigned to V6-V8.
 
 ## Safety Boundary
 
@@ -64,9 +78,15 @@ ledger owned by the application. Asset, maintenance-record, sensor-metric, and
 engineering-document evidence receive traceable citations before later synthesis
 enforcement is introduced.
 
-Creating a proposed work order does not authorize physical maintenance.
-Application-level approval enforcement, duplicate-action protection, and
-LangGraph pause/resume behavior will be implemented in V5.
+Creating or approving a proposed work order does not authorize or record physical
+maintenance execution. V5 enforces application-level human approval, duplicate-
+proposal protection, version and scope validation, durable LangGraph pause/resume,
+and fail-closed resume identity checks.
+
+An approved work order remains unexecuted: `executed_at`,
+`execution_summary`, and approval `consumed_at` remain unset. No V5 component
+controls machinery, modifies PLC parameters, bypasses interlocks, or reports that
+physical work occurred.
 
 ## Planned Maintenance Workflow
 
@@ -260,6 +280,73 @@ and the application-owned tool adapters. Fake models avoid billable hosted calls
 while preserving the real model-tool-model graph transitions and structured
 synthesis boundary.
 
+## V5 Human-in-the-Loop Actions
+
+V5 extends the grounded investigation workflow with application-level work-order
+proposals and explicit human approval. The model may recommend an eligible action,
+but deterministic application code owns proposal creation, database mutation,
+approval enforcement, checkpoint persistence, and resume validation.
+
+### V5.1 Grounded Work-Order Proposals
+
+A work-order proposal is accepted only when the source diagnosis:
+
+- Has a completed `diagnosis` outcome
+- Matches the proposal asset
+- Passed application-owned grounding enforcement
+- Was not downgraded
+- Contains no grounding violations
+- Uses citations that exactly match the grounding audit
+
+The proposal service writes a `pending_approval` work order and a matching
+`pending` approval request in one transaction. Stable idempotency keys return the
+existing proposal for identical retries and reject conflicting payloads.
+
+### V5.2 Human Approval Enforcement
+
+Typed human decisions support only `approved` or `rejected`. The deterministic
+approval service verifies:
+
+- Work-order and approval-record identity
+- Current request revision
+- Approval scope
+- Pending state
+- Optional expiry
+- Human decision metadata
+- Conflicting or repeated decisions
+
+An identical retry returns the existing decision. A conflicting second decision is
+rejected without replacing the first decision.
+
+### V5.3 Durable LangGraph Pause and Resume
+
+The main LangGraph agent can pause after a grounded work-order proposal using a
+native dynamic interrupt. The interrupt contains a typed, JSON-serializable
+proposal payload.
+
+The graph uses a stable `thread_id` and an official SQLite checkpointer. Automated
+tests close the original checkpoint connection, construct a new saver and graph,
+and resume the same workflow from the persisted checkpoint.
+
+Strict checkpoint deserialization is enabled explicitly. Restored plain data is
+revalidated through Pydantic before it is trusted as application state.
+
+### V5.4 End-to-End HITL Safety
+
+The V5 end-to-end scenarios use fake models with real SQLite application records,
+real proposal and approval services, durable LangGraph checkpoints, and native
+resume commands. They verify:
+
+- Complete grounded evidence can create one pending proposal
+- Approved and rejected human journeys update the correct records
+- Resume does not repeat model inference or proposal mutation
+- Insufficient evidence creates no work-order or approval records
+- Tampered run, thread, work-order, approval, version, and scope data is rejected
+- Invalid resume input produces a correctable re-interrupt
+- Approved work remains application-approved but physically unexecuted
+
+Automated tests do not make billable hosted-model calls.
+
 ## Engineering Document Corpus
 
 The V2 corpus contains three original synthetic documents:
@@ -299,6 +386,7 @@ Alembic maintains the `alembic_version` table to track the active database revis
 - ChromaDB
 - Sentence Transformers
 - LangGraph
+- LangGraph SQLite Checkpointer
 - LangChain OpenAI
 - Microsoft Foundry / Azure OpenAI
 - pytest
@@ -308,6 +396,18 @@ Alembic maintains the `alembic_version` table to track the active database revis
 
 ```text
 app/
+|-- agent/
+|   |-- approval.py
+|   |-- checkpoint.py
+|   |-- evidence.py
+|   |-- graph.py
+|   |-- grounding.py
+|   |-- nodes.py
+|   |-- policy.py
+|   |-- proposal.py
+|   |-- state.py
+|   |-- synthesis.py
+|   `-- tool_node.py
 |-- api/
 |   `-- routes/
 |       `-- health.py
@@ -320,23 +420,21 @@ app/
 |   |-- seed.py
 |   |-- seed_reference.py
 |   `-- seed_sensor.py
+|-- llm/
 |-- models/
 |-- rag/
-|   |-- documents.py
-|   |-- embeddings.py
-|   `-- indexer.py
 |-- schemas/
-|   |-- asset.py
-|   |-- common.py
-|   |-- maintenance.py
-|   |-- rag.py
-|   `-- sensor.py
-|-- tools/
-|   |-- asset.py
+|   |-- actions.py
+|   |-- diagnosis.py
+|   |-- evidence.py
+|   |-- hitl.py
+|   |-- investigation.py
+|   `-- tool-specific schemas
+|-- services/
+|   |-- approvals.py
 |   |-- exceptions.py
-|   |-- maintenance.py
-|   |-- rag.py
-|   `-- sensor.py
+|   `-- work_orders.py
+|-- tools/
 `-- main.py
 
 data/
@@ -416,7 +514,9 @@ Open:
 - Health endpoint: `http://127.0.0.1:8000/health`
 - Swagger UI: `http://127.0.0.1:8000/docs`
 
-V2 tools are currently Python application functions. REST endpoints for maintenance investigations will be introduced in later application versions.
+The investigation, proposal, approval, and resume workflows currently operate as
+Python application components. REST endpoints for these workflows are assigned to
+V6.
 
 ## Quality Checks
 
@@ -479,7 +579,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V2 - Deterministic Tools: complete
 - V3 - GenAI and LangGraph Agent Core: complete
 - V4 - Grounded Maintenance Investigation: complete
-- V5 - Human-in-the-Loop Actions
+- V5 - Human-in-the-Loop Actions: complete
 - V6 - Application and Observability
 - V7 - Evaluation and Reliability
 - V8 - Docker and Azure
