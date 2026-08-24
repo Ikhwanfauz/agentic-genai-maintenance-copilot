@@ -80,6 +80,7 @@ def open_agent_runtime(
             diagnosis_model=diagnosis_model,
             proposal_node=proposal_node,
             checkpointer=checkpointer,
+            observability_session_factory=session_factory,
         )
 
         yield AgentRuntime(

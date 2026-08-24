@@ -5,23 +5,43 @@ from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
+from sqlalchemy.orm import Session
 
 from app.agent.approval import (
     await_work_order_approval,
     prepare_approval_pause,
 )
 from app.agent.nodes import create_call_model_node
+from app.agent.observability import create_observed_node
 from app.agent.policy import evaluate_evidence_coverage
 from app.agent.state import AgentRoute, AgentState, AgentStatus
 from app.agent.synthesis import create_synthesize_diagnosis_node
 from app.agent.tool_node import create_execute_tools_node
+from app.models.enums import AgentStepType
 from app.schemas.diagnosis import InvestigationOutcome
 from app.schemas.investigation import GroundingDecision
 
-WorkOrderProposalNode = Callable[
-    [AgentState],
-    dict[str, object],
-]
+AgentNode = Callable[[AgentState], dict[str, object]]
+WorkOrderProposalNode = AgentNode
+ObservabilitySessionFactory = Callable[[], Session]
+
+
+def _observe_node(
+    node: AgentNode,
+    session_factory: ObservabilitySessionFactory | None,
+    *,
+    step_type: AgentStepType,
+    summary: str,
+) -> AgentNode:
+    if session_factory is None:
+        return node
+
+    return create_observed_node(
+        node,
+        session_factory,
+        step_type=step_type,
+        summary=summary,
+    )
 
 
 def initialize_request(_state: AgentState) -> dict[str, object]:
@@ -136,6 +156,7 @@ def build_agent_graph(
     diagnosis_model: Runnable | None = None,
     proposal_node: WorkOrderProposalNode | None = None,
     checkpointer: BaseCheckpointSaver | None = None,
+    observability_session_factory: ObservabilitySessionFactory | None = None,
 ):
 
     if proposal_node is not None and diagnosis_model is None:
@@ -145,19 +166,59 @@ def build_agent_graph(
         raise ValueError("A work-order proposal node requires a LangGraph checkpointer.")
     builder = StateGraph(AgentState)
 
-    builder.add_node("initialize", initialize_request)
-    builder.add_node("mark_ready", mark_ready)
-    builder.add_node("reject_request", reject_request)
-    builder.add_node(
-        "call_model",
+    initialize_node = _observe_node(
+        initialize_request,
+        observability_session_factory,
+        step_type=AgentStepType.ROUTING,
+        summary="Initialized the maintenance investigation.",
+    )
+    mark_ready_node = _observe_node(
+        mark_ready,
+        observability_session_factory,
+        step_type=AgentStepType.GUARDRAIL,
+        summary="Validated the investigation request and evidence coverage.",
+    )
+    reject_request_node = _observe_node(
+        reject_request,
+        observability_session_factory,
+        step_type=AgentStepType.GUARDRAIL,
+        summary="Rejected an invalid maintenance investigation request.",
+    )
+    call_model_node = _observe_node(
         create_call_model_node(
             model,
             require_structured_diagnosis=diagnosis_model is not None,
         ),
+        observability_session_factory,
+        step_type=AgentStepType.TOOL_SELECTION,
+        summary="Selected the next maintenance investigation action.",
+    )
+    execute_tools_node = _observe_node(
+        create_execute_tools_node(tools),
+        observability_session_factory,
+        step_type=AgentStepType.TOOL_EXECUTION,
+        summary="Executed a deterministic investigation tool.",
+    )
+
+    builder.add_node(
+        "initialize",
+        initialize_node,
+    )
+    builder.add_node(
+        "mark_ready",
+        mark_ready_node,
+    )
+    builder.add_node(
+        "reject_request",
+        reject_request_node,
+    )
+    builder.add_node(
+        "call_model",
+        call_model_node,
     )
     builder.add_node(
         "execute_tools",
-        create_execute_tools_node(tools),
+        execute_tools_node,
     )
 
     builder.add_edge(START, "initialize")
@@ -172,9 +233,15 @@ def build_agent_graph(
             route_after_model_without_synthesis,
         )
     else:
+        synthesis_node = _observe_node(
+            create_synthesize_diagnosis_node(diagnosis_model),
+            observability_session_factory,
+            step_type=AgentStepType.EVIDENCE_SYNTHESIS,
+            summary="Synthesized and validated a grounded diagnosis.",
+        )
         builder.add_node(
             "synthesize_diagnosis",
-            create_synthesize_diagnosis_node(diagnosis_model),
+            synthesis_node,
         )
         builder.add_conditional_edges(
             "call_model",
@@ -186,13 +253,26 @@ def build_agent_graph(
                 END,
             )
         else:
+            observed_proposal_node = _observe_node(
+                proposal_node,
+                observability_session_factory,
+                step_type=AgentStepType.FINAL_RESPONSE,
+                summary="Created a grounded work-order proposal.",
+            )
+            observed_approval_pause_node = _observe_node(
+                prepare_approval_pause,
+                observability_session_factory,
+                step_type=AgentStepType.APPROVAL_PAUSE,
+                summary="Prepared the work order for human approval.",
+            )
+
             builder.add_node(
                 "propose_work_order",
-                proposal_node,
+                observed_proposal_node,
             )
             builder.add_node(
                 "prepare_approval_pause",
-                prepare_approval_pause,
+                observed_approval_pause_node,
             )
             builder.add_node(
                 "await_work_order_approval",

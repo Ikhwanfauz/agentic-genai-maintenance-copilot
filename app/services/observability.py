@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -104,6 +104,30 @@ def _commit_record(
         raise ObservabilityPersistenceError(
             "The observability database transaction failed."
         ) from error
+
+
+def get_next_agent_step_number(
+    database_session: Session,
+    run_id: str,
+) -> int:
+    _load_agent_run(
+        database_session,
+        run_id,
+    )
+
+    try:
+        current_step_number = database_session.scalar(
+            select(func.max(AgentStep.step_number)).where(
+                AgentStep.run_id == run_id,
+            )
+        )
+    except SQLAlchemyError as error:
+        database_session.rollback()
+        raise ObservabilityPersistenceError(
+            "The observability step-number query failed."
+        ) from error
+
+    return (current_step_number or 0) + 1
 
 
 def record_agent_step(

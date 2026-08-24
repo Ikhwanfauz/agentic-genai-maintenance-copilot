@@ -29,6 +29,7 @@ from app.services.exceptions import (
     WorkOrderServiceError,
 )
 from app.services.observability import (
+    get_next_agent_step_number,
     record_agent_step,
     record_tool_call,
 )
@@ -64,4 +65,5 @@ __all__ = [
     "ObservabilityServiceError",
     "record_agent_step",
     "record_tool_call",
+    "get_next_agent_step_number",
 ]

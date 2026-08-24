@@ -153,6 +153,7 @@ def test_open_agent_runtime_composes_shared_dependencies(
         diagnosis_model=diagnosis_model,
         proposal_node=proposal_node,
         checkpointer=checkpointer,
+        observability_session_factory=session_factory,
     )
 
 
