@@ -20,6 +20,12 @@ class WorkOrderApprovalInterrupt(BaseModel):
     )
     proposal: WorkOrderProposalOutput
 
+    validation_error: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=2000,
+    )
+
     @field_validator(
         "run_id",
         "thread_id",

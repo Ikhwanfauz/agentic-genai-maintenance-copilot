@@ -204,7 +204,55 @@ def test_graph_resumes_with_completed_human_decision(
     assert "__interrupt__" not in result
 
 
-def test_resume_rejects_mismatched_work_order() -> None:
+@pytest.mark.parametrize(
+    (
+        "field_name",
+        "invalid_value",
+        "error_match",
+    ),
+    [
+        (
+            "run_id",
+            "wrong-run",
+            "run does not match",
+        ),
+        (
+            "thread_id",
+            "wrong-thread",
+            "thread does not match",
+        ),
+        (
+            "work_order_id",
+            999,
+            "work order does not match",
+        ),
+        (
+            "work_order_number",
+            "WO-PROP-WRONG",
+            "work-order number does not match",
+        ),
+        (
+            "approval_id",
+            999,
+            "approval record does not match",
+        ),
+        (
+            "request_version",
+            2,
+            "version does not match",
+        ),
+        (
+            "approval_scope",
+            "review_only",
+            "execute_work_order",
+        ),
+    ],
+)
+def test_resume_rejects_tampered_approval_identity(
+    field_name: str,
+    invalid_value: object,
+    error_match: str,
+) -> None:
     graph = build_approval_test_graph()
     state = create_state_with_pending_proposal()
     config = {
@@ -218,23 +266,51 @@ def test_resume_rejects_mismatched_work_order() -> None:
         config=config,
     )
 
-    resume = create_resume_payload(
+    valid_resume = create_resume_payload(
         ApprovalDecision.APPROVED,
     )
-    resume.decision.work_order_id = 999
+    tampered_resume = valid_resume.model_copy(deep=True)
 
-    with pytest.raises(
-        ValueError,
-        match="work order does not match",
-    ):
-        graph.invoke(
-            Command(
-                resume=resume.model_dump(mode="json"),
-            ),
-            config=config,
+    if field_name in {
+        "run_id",
+        "thread_id",
+    }:
+        setattr(
+            tampered_resume,
+            field_name,
+            invalid_value,
         )
+    else:
+        setattr(
+            tampered_resume.decision,
+            field_name,
+            invalid_value,
+        )
+
+    rejected_resume = graph.invoke(
+        Command(
+            resume=tampered_resume.model_dump(mode="json"),
+        ),
+        config=config,
+    )
+
+    assert rejected_resume["status"] == (AgentStatus.WAITING_FOR_APPROVAL)
+    assert rejected_resume["approval_decision"] is None
+    assert len(rejected_resume["__interrupt__"]) == 1
+    assert error_match in (rejected_resume["__interrupt__"][0].value["validation_error"])
 
     snapshot = graph.get_state(config)
 
-    assert snapshot.values["status"] == AgentStatus.WAITING_FOR_APPROVAL
+    assert snapshot.values["status"] == (AgentStatus.WAITING_FOR_APPROVAL)
     assert snapshot.values["approval_decision"] is None
+
+    recovered = graph.invoke(
+        Command(
+            resume=valid_resume.model_dump(mode="json"),
+        ),
+        config=config,
+    )
+
+    assert recovered["status"] == AgentStatus.COMPLETED
+    assert recovered["approval_decision"] is not None
+    assert recovered["approval_decision"].decision == ApprovalDecision.APPROVED

@@ -89,13 +89,26 @@ def await_work_order_approval(
         raise ValueError("Approval interrupt payload must be prepared before waiting.")
 
     approval_interrupt = WorkOrderApprovalInterrupt.model_validate(approval_interrupt_value)
-    resume_value = interrupt(approval_interrupt.model_dump(mode="json"))
-    resume = WorkOrderApprovalResume.model_validate(resume_value)
+    interrupt_payload = approval_interrupt.model_dump(mode="json")
 
-    _validate_resume_matches_interrupt(
-        state,
-        resume,
-    )
+    while True:
+        resume_value = interrupt(interrupt_payload)
+
+        try:
+            resume = WorkOrderApprovalResume.model_validate(resume_value)
+            _validate_resume_matches_interrupt(
+                state,
+                resume,
+            )
+        except ValueError as error:
+            interrupt_payload = approval_interrupt.model_copy(
+                update={
+                    "validation_error": str(error)[:2000],
+                }
+            ).model_dump(mode="json")
+            continue
+
+        break
 
     return {
         "status": AgentStatus.COMPLETED,

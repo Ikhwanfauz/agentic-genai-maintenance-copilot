@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pytest
 from langchain_core.messages import AIMessage
 from langgraph.types import Command
+from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -317,6 +318,75 @@ def test_grounded_work_order_completes_human_approval_journey(
             assert work_order.executed_at is None
             assert work_order.execution_summary is None
             assert approval.consumed_at is None
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+def test_insufficient_evidence_creates_no_action_records(
+    tmp_path: Path,
+) -> None:
+    application_database_path = tmp_path / "insufficient_application.sqlite"
+    checkpoint_path = tmp_path / "insufficient_checkpoints.sqlite"
+    engine, session_factory = create_application_database(application_database_path)
+
+    investigation_model = Mock()
+    investigation_model.invoke.return_value = AIMessage(content="Required evidence is incomplete.")
+    diagnosis_model = Mock()
+    diagnosis_model.invoke.return_value = create_grounded_diagnosis(
+        create_complete_evidence_ledger()
+    )
+    number_factory = Mock(return_value="WO-E2E-MUST-NOT-EXIST")
+    proposal_node = create_propose_work_order_node(
+        session_factory,
+        work_order_number_factory=number_factory,
+    )
+    state = create_initial_state(
+        "Investigate P-101 with incomplete evidence",
+        "P-101",
+        run_id="e2e-insufficient-run",
+        thread_id="e2e-insufficient-thread",
+    )
+    config = {
+        "configurable": {
+            "thread_id": state["thread_id"],
+        }
+    }
+
+    try:
+        with open_sqlite_checkpointer(checkpoint_path) as checkpointer:
+            graph = build_agent_graph(
+                investigation_model,
+                diagnosis_model=diagnosis_model,
+                proposal_node=proposal_node,
+                checkpointer=checkpointer,
+            )
+            result = graph.invoke(
+                state,
+                config=config,
+            )
+
+        assert result["status"] == AgentStatus.COMPLETED
+        assert result["route"] == AgentRoute.END
+        assert result["diagnosis"].outcome == (InvestigationOutcome.INSUFFICIENT_EVIDENCE)
+        assert result["grounding_result"].downgraded is True
+        assert result["work_order_proposal"] is None
+        assert "__interrupt__" not in result
+
+        number_factory.assert_not_called()
+        assert investigation_model.invoke.call_count == 1
+        assert diagnosis_model.invoke.call_count == 1
+
+        with session_factory() as database_session:
+            work_order_count = int(
+                database_session.scalar(select(func.count()).select_from(WorkOrder)) or 0
+            )
+            approval_count = int(
+                database_session.scalar(select(func.count()).select_from(Approval)) or 0
+            )
+
+        assert work_order_count == 0
+        assert approval_count == 0
     finally:
         Base.metadata.drop_all(engine)
         engine.dispose()
