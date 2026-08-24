@@ -11,6 +11,11 @@ from app.services.exceptions import (
     AgentWorkflowPersistenceError,
     AgentWorkflowServiceError,
     AgentWorkflowStateError,
+    ObservabilityApprovalError,
+    ObservabilityConflictError,
+    ObservabilityPersistenceError,
+    ObservabilityReferenceError,
+    ObservabilityServiceError,
     WorkOrderApprovalConflictError,
     WorkOrderApprovalExpiredError,
     WorkOrderApprovalNotFoundError,
@@ -22,6 +27,10 @@ from app.services.exceptions import (
     WorkOrderPersistenceError,
     WorkOrderProposalStateError,
     WorkOrderServiceError,
+)
+from app.services.observability import (
+    record_agent_step,
+    record_tool_call,
 )
 
 __all__ = [
@@ -48,4 +57,11 @@ __all__ = [
     "get_agent_run",
     "AgentRunApprovalStateError",
     "decide_agent_run_approval",
+    "ObservabilityApprovalError",
+    "ObservabilityConflictError",
+    "ObservabilityPersistenceError",
+    "ObservabilityReferenceError",
+    "ObservabilityServiceError",
+    "record_agent_step",
+    "record_tool_call",
 ]

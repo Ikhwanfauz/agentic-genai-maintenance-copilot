@@ -143,7 +143,7 @@ def test_failed_tool_call_requires_error_details() -> None:
 def test_state_changing_tool_call_requires_approval() -> None:
     with pytest.raises(
         ValidationError,
-        match="requires an approval record",
+        match="non-blocked state-changing tool call requires an approval record",
     ):
         ToolCallRecordInput(
             run_id="run-observe-001",
@@ -172,3 +172,20 @@ def test_blocked_tool_call_requires_reason() -> None:
             completed_at=COMPLETED_AT,
             latency_ms=25,
         )
+
+
+def test_blocked_state_changing_tool_call_can_be_audited_without_approval() -> None:
+    record = ToolCallRecordInput(
+        run_id="run-observe-001",
+        tool_name="execute_work_order",
+        arguments_json={"work_order_id": 1},
+        status=ToolCallStatus.BLOCKED,
+        is_state_changing=True,
+        started_at=STARTED_AT,
+        completed_at=COMPLETED_AT,
+        latency_ms=25,
+        error_message="Human approval was not provided.",
+    )
+
+    assert record.status == ToolCallStatus.BLOCKED
+    assert record.approval_id is None

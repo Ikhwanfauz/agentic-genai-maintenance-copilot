@@ -133,8 +133,12 @@ class ToolCallRecordInput(ObservabilityModel):
         if self.completed_at < self.started_at:
             raise ValueError("Tool-call completion must not be earlier than its start.")
 
-        if self.is_state_changing and self.approval_id is None:
-            raise ValueError("A state-changing tool call requires an approval record.")
+        if (
+            self.is_state_changing
+            and self.status != ToolCallStatus.BLOCKED
+            and self.approval_id is None
+        ):
+            raise ValueError("A non-blocked state-changing tool call requires an approval record.")
 
         if self.status == ToolCallStatus.SUCCEEDED:
             if self.result_json is None:

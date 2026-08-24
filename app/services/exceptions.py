@@ -113,3 +113,23 @@ class AgentWorkflowExecutionError(AgentWorkflowServiceError):
 
 class AgentWorkflowPersistenceError(AgentWorkflowServiceError):
     pass
+
+
+class ObservabilityServiceError(AgentWorkflowServiceError):
+    """Base exception for persisted runtime observability."""
+
+
+class ObservabilityReferenceError(ObservabilityServiceError):
+    pass
+
+
+class ObservabilityConflictError(ObservabilityServiceError):
+    pass
+
+
+class ObservabilityApprovalError(ObservabilityServiceError):
+    pass
+
+
+class ObservabilityPersistenceError(ObservabilityServiceError):
+    pass
