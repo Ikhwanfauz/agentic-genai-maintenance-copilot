@@ -4,6 +4,11 @@ from app.schemas.actions import (
     WorkOrderProposalInput,
     WorkOrderProposalOutput,
 )
+from app.schemas.agent_api import (
+    AgentApprovalDecisionRequest,
+    AgentInvestigationStartRequest,
+    AgentRunResponse,
+)
 from app.schemas.asset import AssetDetailsInput, AssetDetailsOutput
 from app.schemas.common import AssetCodeInput
 from app.schemas.diagnosis import (
@@ -75,4 +80,7 @@ __all__ = [
     "WorkOrderApprovalDecisionOutput",
     "WorkOrderApprovalInterrupt",
     "WorkOrderApprovalResume",
+    "AgentApprovalDecisionRequest",
+    "AgentInvestigationStartRequest",
+    "AgentRunResponse",
 ]
