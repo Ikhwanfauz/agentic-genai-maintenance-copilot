@@ -35,6 +35,10 @@ from app.schemas.maintenance import (
     MaintenanceHistoryOutput,
     MaintenanceRecordOutput,
 )
+from app.schemas.observability import (
+    AgentStepRecordInput,
+    ToolCallRecordInput,
+)
 from app.schemas.rag import (
     EngineeringDocumentResult,
     EngineeringDocumentSearchInput,
@@ -83,4 +87,6 @@ __all__ = [
     "AgentApprovalDecisionRequest",
     "AgentInvestigationStartRequest",
     "AgentRunResponse",
+    "AgentStepRecordInput",
+    "ToolCallRecordInput",
 ]
