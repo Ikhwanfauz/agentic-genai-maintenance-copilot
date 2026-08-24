@@ -93,6 +93,10 @@ class AgentRunNotFoundError(AgentWorkflowServiceError):
         super().__init__(f"Agent run '{run_id}' was not found.")
 
 
+class AgentRunApprovalStateError(AgentWorkflowServiceError):
+    pass
+
+
 class AgentWorkflowStateError(AgentWorkflowServiceError):
     pass
 

@@ -1,9 +1,11 @@
 from app.services.agent_workflows import (
+    decide_agent_run_approval,
     get_agent_run,
     start_agent_investigation,
 )
 from app.services.approvals import decide_work_order_approval
 from app.services.exceptions import (
+    AgentRunApprovalStateError,
     AgentRunNotFoundError,
     AgentWorkflowExecutionError,
     AgentWorkflowPersistenceError,
@@ -44,4 +46,6 @@ __all__ = [
     "AgentRunNotFoundError",
     "AgentWorkflowStateError",
     "get_agent_run",
+    "AgentRunApprovalStateError",
+    "decide_agent_run_approval",
 ]

@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import uuid4
 
+from langgraph.types import Command
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -11,12 +12,16 @@ from app.agent.state import (
     create_initial_state,
 )
 from app.models.agent_log import AgentRun
+from app.models.approval import Approval
 from app.models.enums import AgentRunStatus
+from app.models.work_order import WorkOrder
 from app.schemas.actions import (
+    WorkOrderApprovalDecisionInput,
     WorkOrderApprovalDecisionOutput,
     WorkOrderProposalOutput,
 )
 from app.schemas.agent_api import (
+    AgentApprovalDecisionRequest,
     AgentInvestigationStartRequest,
     AgentRunResponse,
 )
@@ -24,8 +29,13 @@ from app.schemas.diagnosis import (
     InvestigationOutcome,
     MaintenanceDiagnosis,
 )
-from app.schemas.hitl import WorkOrderApprovalInterrupt
+from app.schemas.hitl import (
+    WorkOrderApprovalInterrupt,
+    WorkOrderApprovalResume,
+)
+from app.services.approvals import decide_work_order_approval
 from app.services.exceptions import (
+    AgentRunApprovalStateError,
     AgentRunNotFoundError,
     AgentWorkflowExecutionError,
     AgentWorkflowPersistenceError,
@@ -437,4 +447,281 @@ def get_agent_run(
         final_response=run.final_response,
         error_type=run.error_type,
         error_message=run.error_message,
+    )
+
+
+def _load_agent_run_record(
+    database_session: Session,
+    run_id: str,
+) -> AgentRun:
+    normalized_run_id = run_id.strip()
+
+    if not normalized_run_id:
+        raise AgentRunNotFoundError(run_id)
+
+    try:
+        run = database_session.get(
+            AgentRun,
+            normalized_run_id,
+        )
+    except SQLAlchemyError as error:
+        database_session.rollback()
+        raise AgentWorkflowPersistenceError("The agent-run database query failed.") from error
+
+    if run is None:
+        raise AgentRunNotFoundError(normalized_run_id)
+
+    return run
+
+
+def _validate_approval_database_identity(
+    database_session: Session,
+    proposal: WorkOrderProposalOutput,
+) -> None:
+    try:
+        work_order = database_session.get(
+            WorkOrder,
+            proposal.work_order_id,
+        )
+        approval = database_session.get(
+            Approval,
+            proposal.approval_id,
+        )
+    except SQLAlchemyError as error:
+        database_session.rollback()
+        raise AgentWorkflowPersistenceError(
+            "The approval identity database query failed."
+        ) from error
+
+    if work_order is None:
+        raise AgentWorkflowStateError("The checkpoint work order does not exist.")
+
+    if approval is None:
+        raise AgentWorkflowStateError("The checkpoint approval record does not exist.")
+
+    if work_order.work_order_number != proposal.work_order_number:
+        raise AgentWorkflowStateError("Checkpoint work-order number does not match the database.")
+
+    if work_order.revision != proposal.revision:
+        raise AgentWorkflowStateError("Checkpoint work-order revision does not match the database.")
+
+    if approval.work_order_id != proposal.work_order_id:
+        raise AgentWorkflowStateError(
+            "Checkpoint approval does not belong to the proposed work order."
+        )
+
+    if approval.request_version != proposal.request_version:
+        raise AgentWorkflowStateError("Checkpoint approval version does not match the database.")
+
+    if approval.approval_scope != proposal.approval_scope:
+        raise AgentWorkflowStateError("Checkpoint approval scope does not match the database.")
+
+
+def _record_resume_failure(
+    database_session: Session,
+    run: AgentRun,
+    error: Exception,
+) -> None:
+    run.status = AgentRunStatus.WAITING_FOR_APPROVAL
+    run.completed_at = None
+    run.duration_ms = None
+    run.error_type = type(error).__name__
+    run.error_message = str(error)[:4000]
+
+    _commit_run(
+        database_session,
+        run,
+    )
+
+
+def decide_agent_run_approval(
+    database_session: Session,
+    graph: AgentGraph,
+    run_id: str,
+    request: AgentApprovalDecisionRequest,
+    *,
+    workflow_clock: WorkflowClock = utc_now,
+) -> AgentRunResponse:
+    run = _load_agent_run_record(
+        database_session,
+        run_id,
+    )
+
+    if run.status != AgentRunStatus.WAITING_FOR_APPROVAL:
+        raise AgentRunApprovalStateError(f"Agent run '{run.id}' is not waiting for approval.")
+
+    checkpoint_values = _load_checkpoint_values(
+        graph,
+        run,
+    )
+    (
+        checkpoint_status,
+        diagnosis,
+        proposal,
+        approval_interrupt,
+        _existing_decision,
+        _checkpoint_error,
+    ) = _validate_graph_result(checkpoint_values)
+
+    if checkpoint_status != AgentRunStatus.WAITING_FOR_APPROVAL:
+        raise AgentWorkflowStateError("Checkpoint is not waiting for an approval decision.")
+
+    if proposal is None or approval_interrupt is None:
+        raise AgentWorkflowStateError("Approval resume requires a trusted proposal and interrupt.")
+
+    _validate_approval_database_identity(
+        database_session,
+        proposal,
+    )
+
+    decision_input = WorkOrderApprovalDecisionInput(
+        work_order_id=proposal.work_order_id,
+        request_version=request.request_version,
+        decision=request.decision,
+        decided_by=request.decided_by,
+        decision_reason=request.decision_reason,
+        decision_source=request.decision_source,
+        approval_scope=request.approval_scope,
+    )
+    decision_output = decide_work_order_approval(
+        database_session,
+        decision_input,
+        decision_clock=workflow_clock,
+    )
+    resume_payload = WorkOrderApprovalResume(
+        run_id=run.id,
+        thread_id=run.thread_id,
+        decision=decision_output,
+    )
+    config: dict[str, object] = {
+        "configurable": {
+            "thread_id": run.thread_id,
+        }
+    }
+
+    try:
+        resumed_result = graph.invoke(
+            Command(
+                resume=resume_payload.model_dump(mode="json"),
+            ),
+            config=config,
+        )
+        (
+            resumed_status,
+            resumed_diagnosis,
+            resumed_proposal,
+            resumed_interrupt,
+            resumed_decision,
+            resumed_error,
+        ) = _validate_graph_result(resumed_result)
+
+        if resumed_status != AgentRunStatus.COMPLETED:
+            raise AgentWorkflowStateError("Approval resume did not complete the agent run.")
+
+        if resumed_decision != decision_output:
+            raise AgentWorkflowStateError(
+                "Resumed approval decision does not match the applied decision."
+            )
+    except Exception as error:
+        _record_resume_failure(
+            database_session,
+            run,
+            error,
+        )
+        raise AgentWorkflowExecutionError(
+            run.id,
+            f"Agent run '{run.id}' failed during approval resume.",
+        ) from error
+
+    completed_at = _normalize_utc_timestamp(workflow_clock())
+    run.status = AgentRunStatus.COMPLETED
+    run.completed_at = completed_at
+    run.duration_ms = _duration_ms(
+        _restore_utc_timestamp(run.started_at),
+        completed_at,
+    )
+    run.final_response = (
+        resumed_diagnosis.summary if resumed_diagnosis is not None else run.final_response
+    )
+    run.error_type = None
+    run.error_message = resumed_error
+
+    _commit_run(
+        database_session,
+        run,
+    )
+
+    return AgentRunResponse(
+        run_id=run.id,
+        thread_id=run.thread_id,
+        status=run.status,
+        started_at=_restore_utc_timestamp(run.started_at),
+        completed_at=completed_at,
+        diagnosis=resumed_diagnosis,
+        work_order_proposal=resumed_proposal,
+        approval_interrupt=resumed_interrupt,
+        approval_decision=resumed_decision,
+        final_response=run.final_response,
+        error_type=run.error_type,
+        error_message=run.error_message,
+    )
+
+
+def _validate_approval_database_identity(
+    database_session: Session,
+    proposal: WorkOrderProposalOutput,
+) -> None:
+    try:
+        work_order = database_session.get(
+            WorkOrder,
+            proposal.work_order_id,
+        )
+        approval = database_session.get(
+            Approval,
+            proposal.approval_id,
+        )
+    except SQLAlchemyError as error:
+        database_session.rollback()
+        raise AgentWorkflowPersistenceError(
+            "The approval identity database query failed."
+        ) from error
+
+    if work_order is None:
+        raise AgentWorkflowStateError("The checkpoint work order does not exist.")
+
+    if approval is None:
+        raise AgentWorkflowStateError("The checkpoint approval record does not exist.")
+
+    if work_order.work_order_number != proposal.work_order_number:
+        raise AgentWorkflowStateError("Checkpoint work-order number does not match the database.")
+
+    if work_order.revision != proposal.revision:
+        raise AgentWorkflowStateError("Checkpoint work-order revision does not match the database.")
+
+    if approval.work_order_id != proposal.work_order_id:
+        raise AgentWorkflowStateError(
+            "Checkpoint approval does not belong to the proposed work order."
+        )
+
+    if approval.request_version != proposal.request_version:
+        raise AgentWorkflowStateError("Checkpoint approval version does not match the database.")
+
+    if approval.approval_scope != proposal.approval_scope:
+        raise AgentWorkflowStateError("Checkpoint approval scope does not match the database.")
+
+
+def _record_resume_failure(
+    database_session: Session,
+    run: AgentRun,
+    error: Exception,
+) -> None:
+    run.status = AgentRunStatus.WAITING_FOR_APPROVAL
+    run.completed_at = None
+    run.duration_ms = None
+    run.error_type = type(error).__name__
+    run.error_message = str(error)[:4000]
+
+    _commit_run(
+        database_session,
+        run,
     )
