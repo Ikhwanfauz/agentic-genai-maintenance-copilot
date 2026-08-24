@@ -15,6 +15,10 @@ from app.schemas.diagnosis import (
     RecommendedAction,
 )
 from app.schemas.evidence import CollectedEvidence
+from app.schemas.hitl import (
+    WorkOrderApprovalInterrupt,
+    WorkOrderApprovalResume,
+)
 from app.schemas.investigation import (
     DiagnosisGroundingResult,
     EvidenceCoverage,
@@ -69,4 +73,6 @@ __all__ = [
     "WorkOrderProposalOutput",
     "WorkOrderApprovalDecisionInput",
     "WorkOrderApprovalDecisionOutput",
+    "WorkOrderApprovalInterrupt",
+    "WorkOrderApprovalResume",
 ]

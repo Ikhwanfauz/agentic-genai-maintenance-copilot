@@ -17,6 +17,7 @@ def test_create_initial_state_normalizes_request() -> None:
     )
 
     assert state["run_id"] == "test-run"
+    assert state["thread_id"] == "test-run"
     assert state["user_query"] == "Investigate increasing vibration"
     assert state["asset_code"] == "P-101"
     assert state["iteration_count"] == 0
@@ -25,6 +26,9 @@ def test_create_initial_state_normalizes_request() -> None:
     assert state["evidence_ledger"] == []
     assert state["evidence_coverage"] is None
     assert state["grounding_result"] is None
+    assert state["work_order_proposal"] is None
+    assert state["approval_interrupt"] is None
+    assert state["approval_decision"] is None
     assert isinstance(state["messages"][0], HumanMessage)
 
 
@@ -70,4 +74,27 @@ def test_initial_state_enforces_iteration_boundary(
         create_initial_state(
             "Investigate P-101",
             max_iterations=max_iterations,
+        )
+
+
+def test_create_initial_state_accepts_separate_thread_id() -> None:
+    state = create_initial_state(
+        "Investigate P-101 vibration",
+        "P-101",
+        run_id="run-001",
+        thread_id=" maintenance-thread-001 ",
+    )
+
+    assert state["run_id"] == "run-001"
+    assert state["thread_id"] == "maintenance-thread-001"
+
+
+def test_create_initial_state_rejects_blank_thread_id() -> None:
+    with pytest.raises(
+        ValueError,
+        match="non-whitespace",
+    ):
+        create_initial_state(
+            "Investigate P-101 vibration",
+            thread_id="   ",
         )
