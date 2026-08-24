@@ -81,3 +81,21 @@ class WorkOrderApprovalExpiredError(WorkOrderServiceError):
             "Approval request for work order "
             f"'{work_order_id}' version '{request_version}' has expired."
         )
+
+
+class AgentWorkflowServiceError(Exception):
+    """Base exception for agent workflow application services."""
+
+
+class AgentWorkflowExecutionError(AgentWorkflowServiceError):
+    def __init__(
+        self,
+        run_id: str,
+        message: str,
+    ) -> None:
+        self.run_id = run_id
+        super().__init__(message)
+
+
+class AgentWorkflowPersistenceError(AgentWorkflowServiceError):
+    pass

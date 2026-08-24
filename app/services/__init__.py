@@ -1,5 +1,9 @@
+from app.services.agent_workflows import start_agent_investigation
 from app.services.approvals import decide_work_order_approval
 from app.services.exceptions import (
+    AgentWorkflowExecutionError,
+    AgentWorkflowPersistenceError,
+    AgentWorkflowServiceError,
     WorkOrderApprovalConflictError,
     WorkOrderApprovalExpiredError,
     WorkOrderApprovalNotFoundError,
@@ -32,4 +36,8 @@ __all__ = [
     "decide_work_order_approval",
     "generate_work_order_number",
     "propose_work_order",
+    "AgentWorkflowExecutionError",
+    "AgentWorkflowPersistenceError",
+    "AgentWorkflowServiceError",
+    "start_agent_investigation",
 ]
