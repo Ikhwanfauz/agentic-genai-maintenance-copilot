@@ -13,6 +13,9 @@ from app.ui.api_client import (
     MaintenanceApiClient,
     MaintenanceApiClientError,
 )
+from app.ui.approval_panel import render_approval_panel
+from app.ui.operator_actions import refresh_agent_run
+from app.ui.run_views import render_run_details
 
 ACTIVE_RUN_STATE_KEY = "maintenance_active_run"
 
@@ -48,6 +51,24 @@ def start_investigation(
     )
 
     return client.start_investigation(request)
+
+
+def get_latest_agent_run(
+    *,
+    api_base_url: str,
+    timeout_seconds: float,
+    run_id: str,
+) -> AgentRunResponse:
+    """Retrieve the latest run through the typed API client."""
+
+    with MaintenanceApiClient(
+        api_base_url,
+        timeout_seconds=timeout_seconds,
+    ) as client:
+        return refresh_agent_run(
+            client,
+            run_id,
+        )
 
 
 def store_active_run(
@@ -233,4 +254,44 @@ def render_dashboard() -> None:
 
     if active_run is not None:
         st.divider()
+
+        refresh_submitted = st.button(
+            "Refresh run status",
+            key=f"refresh_run_{active_run.run_id}",
+        )
+
+        if refresh_submitted:
+            try:
+                with st.spinner("Retrieving the latest persisted run state..."):
+                    refreshed_run = get_latest_agent_run(
+                        api_base_url=api_base_url,
+                        timeout_seconds=api_timeout_seconds,
+                        run_id=active_run.run_id,
+                    )
+            except (
+                MaintenanceApiClientError,
+                ValueError,
+            ) as error:
+                st.error(str(error))
+            else:
+                store_active_run(refreshed_run)
+                st.toast(
+                    "Latest agent run loaded.",
+                )
+                st.rerun()
+
         render_run_summary(active_run)
+        render_run_details(active_run)
+
+        updated_run = render_approval_panel(
+            active_run,
+            api_base_url=api_base_url,
+            timeout_seconds=api_timeout_seconds,
+        )
+
+        if updated_run is not None:
+            store_active_run(updated_run)
+            st.toast(
+                "Human decision recorded and workflow resumed.",
+            )
+            st.rerun()
