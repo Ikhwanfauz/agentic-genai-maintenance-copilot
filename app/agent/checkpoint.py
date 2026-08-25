@@ -6,6 +6,89 @@ from pathlib import Path
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite import SqliteSaver
 
+_ALLOWED_MSGPACK_MODULES: tuple[tuple[str, ...], ...] = (
+    (
+        "app.agent.state",
+        "AgentRoute",
+    ),
+    (
+        "app.agent.state",
+        "AgentStatus",
+    ),
+    (
+        "app.models.enums",
+        "ApprovalDecision",
+    ),
+    (
+        "app.models.enums",
+        "WorkOrderPriority",
+    ),
+    (
+        "app.models.enums",
+        "WorkOrderStatus",
+    ),
+    (
+        "app.schemas.actions",
+        "WorkOrderApprovalDecisionOutput",
+    ),
+    (
+        "app.schemas.actions",
+        "WorkOrderProposalOutput",
+    ),
+    (
+        "app.schemas.diagnosis",
+        "DiagnosisConfidence",
+    ),
+    (
+        "app.schemas.diagnosis",
+        "EvidenceReference",
+    ),
+    (
+        "app.schemas.diagnosis",
+        "EvidenceSourceType",
+    ),
+    (
+        "app.schemas.diagnosis",
+        "InvestigationOutcome",
+    ),
+    (
+        "app.schemas.diagnosis",
+        "MaintenanceDiagnosis",
+    ),
+    (
+        "app.schemas.diagnosis",
+        "RecommendedAction",
+    ),
+    (
+        "app.schemas.evidence",
+        "CollectedEvidence",
+    ),
+    (
+        "app.schemas.hitl",
+        "WorkOrderApprovalInterrupt",
+    ),
+    (
+        "app.schemas.hitl",
+        "WorkOrderApprovalResume",
+    ),
+    (
+        "app.schemas.investigation",
+        "DiagnosisGroundingResult",
+    ),
+    (
+        "app.schemas.investigation",
+        "EvidenceCoverage",
+    ),
+    (
+        "app.schemas.investigation",
+        "EvidenceCoverageDecision",
+    ),
+    (
+        "app.schemas.investigation",
+        "GroundingDecision",
+    ),
+)
+
 
 def _resolve_checkpoint_path(
     checkpoint_path: str | Path,
@@ -37,7 +120,7 @@ def open_sqlite_checkpointer(
         check_same_thread=False,
     )
     serializer = JsonPlusSerializer(
-        allowed_msgpack_modules=None,
+        allowed_msgpack_modules=_ALLOWED_MSGPACK_MODULES,
     )
     checkpointer = SqliteSaver(
         connection,

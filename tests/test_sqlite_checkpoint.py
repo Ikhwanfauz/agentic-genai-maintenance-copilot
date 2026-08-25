@@ -25,7 +25,22 @@ from app.schemas.actions import (
     WorkOrderApprovalDecisionOutput,
     WorkOrderProposalOutput,
 )
+from app.schemas.diagnosis import (
+    DiagnosisConfidence,
+    EvidenceReference,
+    EvidenceSourceType,
+    InvestigationOutcome,
+    MaintenanceDiagnosis,
+    RecommendedAction,
+)
+from app.schemas.evidence import CollectedEvidence
 from app.schemas.hitl import WorkOrderApprovalResume
+from app.schemas.investigation import (
+    DiagnosisGroundingResult,
+    EvidenceCoverage,
+    EvidenceCoverageDecision,
+    GroundingDecision,
+)
 
 
 def build_persistent_approval_graph(
@@ -82,6 +97,74 @@ def create_state_with_proposal() -> AgentState:
         request_version=1,
         approval_scope="execute_work_order",
         created_new=True,
+    )
+
+    state["diagnosis"] = MaintenanceDiagnosis(
+        asset_code="P-101",
+        outcome=InvestigationOutcome.DIAGNOSIS,
+        summary=("P-101 has a grounded abnormal vibration trend."),
+        confidence=DiagnosisConfidence.MEDIUM,
+        confidence_rationale=("Multiple evidence sources support an inspection."),
+        likely_causes=[
+            "Bearing degradation or coupling misalignment.",
+        ],
+        evidence=[
+            EvidenceReference(
+                source_type=EvidenceSourceType.SENSOR_ANALYSIS,
+                source_id="P-101:vibration",
+                summary="P-101 vibration increased.",
+                citation="sensor:P-101:vibration",
+            ),
+        ],
+        recommended_actions=[
+            RecommendedAction(
+                action="Inspect the P-101 rotating assembly.",
+                rationale=("The grounded vibration trend justifies inspection."),
+                priority=WorkOrderPriority.HIGH,
+                state_changing=True,
+                requires_human_approval=True,
+            ),
+        ],
+        safety_notes=[
+            "Follow site isolation and permit procedures.",
+        ],
+    )
+    state["evidence_ledger"] = [
+        CollectedEvidence(
+            tool_call_id="tool-call-checkpoint-001",
+            tool_name="analyze_sensor_data",
+            source_type=EvidenceSourceType.SENSOR_ANALYSIS,
+            source_id="P-101:vibration",
+            citation="sensor:P-101:vibration",
+            asset_code="P-101",
+            payload={
+                "trend": "increasing",
+            },
+        )
+    ]
+    state["evidence_coverage"] = EvidenceCoverage(
+        decision=EvidenceCoverageDecision.READY,
+        target_asset_code="P-101",
+        required_sources=[
+            EvidenceSourceType.SENSOR_ANALYSIS,
+        ],
+        covered_sources=[
+            EvidenceSourceType.SENSOR_ANALYSIS,
+        ],
+        missing_sources=[],
+        eligible_evidence_count=1,
+        excluded_evidence_count=0,
+        rationale="Required checkpoint evidence is present.",
+    )
+    state["grounding_result"] = DiagnosisGroundingResult(
+        decision=GroundingDecision.GROUNDED,
+        original_outcome=InvestigationOutcome.DIAGNOSIS.value,
+        final_outcome=InvestigationOutcome.DIAGNOSIS.value,
+        matched_citations=[
+            "sensor:P-101:vibration",
+        ],
+        violations=[],
+        downgraded=False,
     )
 
     return state
@@ -149,6 +232,22 @@ def test_sqlite_checkpoint_survives_close_and_reopen(
     assert resumed["status"] == AgentStatus.COMPLETED
     assert resumed["route"] == AgentRoute.END
     assert resumed["approval_decision"] is not None
+    assert isinstance(
+        resumed["diagnosis"],
+        MaintenanceDiagnosis,
+    )
+    assert isinstance(
+        resumed["evidence_ledger"][0],
+        CollectedEvidence,
+    )
+    assert isinstance(
+        resumed["evidence_coverage"],
+        EvidenceCoverage,
+    )
+    assert isinstance(
+        resumed["grounding_result"],
+        DiagnosisGroundingResult,
+    )
     assert resumed["approval_decision"].decision == ApprovalDecision.APPROVED
     assert resumed["visited_nodes"] == [
         "prepare_approval_pause",
