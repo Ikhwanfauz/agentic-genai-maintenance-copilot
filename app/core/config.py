@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     api_host: str = "127.0.0.1"
     api_port: int = 8000
+    maintenance_api_base_url: str = "http://127.0.0.1:8000"
+    maintenance_api_timeout_seconds: float = Field(default=120.0, gt=0)
     database_url: str = "sqlite:///./data/maintenance_copilot.db"
     langgraph_checkpoint_path: str = "./data/langgraph_checkpoints.sqlite"
 
