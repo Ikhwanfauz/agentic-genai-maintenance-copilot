@@ -11,8 +11,13 @@ from app.agent.approval import (
     await_work_order_approval,
     prepare_approval_pause,
 )
+from app.agent.model_observability import (
+    create_failed_model_usage_observer,
+    create_model_usage_observer,
+)
 from app.agent.nodes import create_call_model_node
 from app.agent.observability import (
+    ObservedNodeFailure,
     ObservedNodeSuccess,
     create_observed_node,
 )
@@ -39,6 +44,7 @@ def _observe_node(
     step_type: AgentStepType,
     summary: str,
     on_success: ObservedNodeSuccess | None = None,
+    on_failure: ObservedNodeFailure | None = None,
 ) -> AgentNode:
     if session_factory is None:
         return node
@@ -49,6 +55,7 @@ def _observe_node(
         step_type=step_type,
         summary=summary,
         on_success=on_success,
+        on_failure=on_failure,
     )
 
 
@@ -192,6 +199,16 @@ def build_agent_graph(
         step_type=AgentStepType.GUARDRAIL,
         summary="Rejected an invalid maintenance investigation request.",
     )
+    model_usage_observer = (
+        create_model_usage_observer(observability_session_factory)
+        if observability_session_factory is not None
+        else None
+    )
+    failed_model_usage_observer = (
+        create_failed_model_usage_observer(observability_session_factory)
+        if observability_session_factory is not None
+        else None
+    )
     call_model_node = _observe_node(
         create_call_model_node(
             model,
@@ -200,6 +217,8 @@ def build_agent_graph(
         observability_session_factory,
         step_type=AgentStepType.TOOL_SELECTION,
         summary="Selected the next maintenance investigation action.",
+        on_success=model_usage_observer,
+        on_failure=failed_model_usage_observer,
     )
     tool_call_observer = (
         create_tool_call_observer(observability_session_factory)
@@ -247,11 +266,21 @@ def build_agent_graph(
             route_after_model_without_synthesis,
         )
     else:
+        diagnosis_usage_observer = (
+            create_model_usage_observer(
+                observability_session_factory,
+                count_without_message=True,
+            )
+            if observability_session_factory is not None
+            else None
+        )
         synthesis_node = _observe_node(
             create_synthesize_diagnosis_node(diagnosis_model),
             observability_session_factory,
             step_type=AgentStepType.EVIDENCE_SYNTHESIS,
             summary="Synthesized and validated a grounded diagnosis.",
+            on_success=diagnosis_usage_observer,
+            on_failure=failed_model_usage_observer,
         )
         builder.add_node(
             "synthesize_diagnosis",

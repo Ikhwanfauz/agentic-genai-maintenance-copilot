@@ -27,6 +27,11 @@ from app.models.enums import (
     ToolCallStatus,
 )
 from app.schemas.asset import AssetDetailsInput
+from app.schemas.diagnosis import (
+    DiagnosisConfidence,
+    InvestigationOutcome,
+    MaintenanceDiagnosis,
+)
 
 STARTED_AT = datetime(2026, 8, 25, 15, 0, tzinfo=UTC)
 
@@ -75,6 +80,22 @@ def load_tool_calls(
 ) -> list[ToolCall]:
     with session_factory() as database_session:
         return list(database_session.scalars(select(ToolCall).order_by(ToolCall.id)))
+
+
+def load_run(
+    session_factory: sessionmaker[Session],
+    run_id: str,
+) -> AgentRun:
+    with session_factory() as database_session:
+        run = database_session.get(
+            AgentRun,
+            run_id,
+        )
+
+        assert run is not None
+        database_session.expunge(run)
+
+        return run
 
 
 def create_asset_tool(
@@ -143,7 +164,14 @@ def test_agent_graph_persists_completed_node_sequence(
         run_id,
     )
     model = Mock()
-    model.invoke.return_value = AIMessage(content="Additional evidence is required.")
+    model.invoke.return_value = AIMessage(
+        content="Additional evidence is required.",
+        usage_metadata={
+            "input_tokens": 120,
+            "output_tokens": 30,
+            "total_tokens": 150,
+        },
+    )
     graph = build_agent_graph(
         model,
         observability_session_factory=(database_session_factory),
@@ -161,6 +189,11 @@ def test_agent_graph_persists_completed_node_sequence(
         database_session_factory,
     )
 
+    persisted_run = load_run(
+        database_session_factory,
+        run_id,
+    )
+
     assert result["status"] == AgentStatus.COMPLETED
     assert [step.step_number for step in steps] == [1, 2, 3]
     assert [step.step_type for step in steps] == [
@@ -168,6 +201,11 @@ def test_agent_graph_persists_completed_node_sequence(
         AgentStepType.GUARDRAIL,
         AgentStepType.TOOL_SELECTION,
     ]
+    assert persisted_run.model_calls == 1
+    assert persisted_run.prompt_tokens == 120
+    assert persisted_run.completion_tokens == 30
+    assert persisted_run.total_tokens == 150
+    assert persisted_run.estimated_cost_usd == 0.0
     assert all(step.status == AgentStepStatus.COMPLETED for step in steps)
 
 
@@ -202,11 +240,20 @@ def test_agent_graph_persists_failed_model_node(
         database_session_factory,
     )
 
+    persisted_run = load_run(
+        database_session_factory,
+        run_id,
+    )
+
     assert [step.step_number for step in steps] == [1, 2, 3]
     assert steps[-1].step_type == AgentStepType.TOOL_SELECTION
     assert steps[-1].status == AgentStepStatus.FAILED
     assert steps[-1].error_type == "RuntimeError"
     assert steps[-1].error_message == "Synthetic hosted-model failure."
+    assert persisted_run.model_calls == 1
+    assert persisted_run.prompt_tokens == 0
+    assert persisted_run.completion_tokens == 0
+    assert persisted_run.total_tokens == 0
 
 
 def test_agent_graph_persists_successful_tool_call(
@@ -308,3 +355,59 @@ def test_agent_graph_persists_handled_tool_failure(
     assert tool_calls[0].result_json is None
     assert tool_calls[0].error_type == "ToolExecutionError"
     assert "Synthetic asset database failure" in (tool_calls[0].error_message or "")
+
+
+def test_agent_graph_counts_structured_diagnosis_without_raw_usage(
+    database_session_factory: sessionmaker[Session],
+) -> None:
+    run_id = "run-diagnosis-observe-001"
+    create_run(
+        database_session_factory,
+        run_id,
+    )
+    investigation_model = Mock()
+    investigation_model.invoke.return_value = AIMessage(
+        content="No additional tool was selected.",
+        usage_metadata={
+            "input_tokens": 40,
+            "output_tokens": 10,
+            "total_tokens": 50,
+        },
+    )
+    diagnosis_model = Mock()
+    diagnosis_model.invoke.return_value = MaintenanceDiagnosis(
+        asset_code="P-101",
+        outcome=InvestigationOutcome.INSUFFICIENT_EVIDENCE,
+        summary="Additional evidence is required.",
+        confidence=DiagnosisConfidence.LOW,
+        confidence_rationale=("Required sensor and maintenance evidence is unavailable."),
+        safety_notes=["Do not perform physical work without sufficient evidence."],
+        abstention_reason=("The available evidence is insufficient for diagnosis."),
+    )
+    graph = build_agent_graph(
+        investigation_model,
+        diagnosis_model=diagnosis_model,
+        observability_session_factory=(database_session_factory),
+    )
+
+    result = graph.invoke(
+        create_initial_state(
+            "Investigate P-101 vibration.",
+            "P-101",
+            run_id=run_id,
+        )
+    )
+
+    persisted_run = load_run(
+        database_session_factory,
+        run_id,
+    )
+
+    assert result["status"] == AgentStatus.COMPLETED
+    assert persisted_run.model_calls == 2
+    assert persisted_run.prompt_tokens == 40
+    assert persisted_run.completion_tokens == 10
+    assert persisted_run.total_tokens == 50
+    assert persisted_run.estimated_cost_usd == 0.0
+    investigation_model.invoke.assert_called_once()
+    diagnosis_model.invoke.assert_called_once()

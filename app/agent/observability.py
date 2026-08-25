@@ -33,6 +33,16 @@ ObservedNodeSuccess: TypeAlias = Callable[
     ],
     None,
 ]
+ObservedNodeFailure: TypeAlias = Callable[
+    [
+        AgentState,
+        Exception,
+        AgentStep,
+        datetime,
+        datetime,
+    ],
+    None,
+]
 
 
 def _duration_ms(
@@ -89,6 +99,7 @@ def create_observed_node(
     summary: str,
     observability_clock: ObservabilityClock = utc_now,
     on_success: ObservedNodeSuccess | None = None,
+    on_failure: ObservedNodeFailure | None = None,
 ) -> AgentNode:
     normalized_summary = " ".join(summary.split())
 
@@ -106,7 +117,7 @@ def create_observed_node(
             completed_at = observability_clock()
 
             try:
-                _persist_step(
+                step = _persist_step(
                     session_factory,
                     run_id=state["run_id"],
                     step_type=step_type,
@@ -116,6 +127,15 @@ def create_observed_node(
                     completed_at=completed_at,
                     error=error,
                 )
+
+                if on_failure is not None:
+                    on_failure(
+                        state,
+                        error,
+                        step,
+                        started_at,
+                        completed_at,
+                    )
             except Exception as observability_error:
                 error.add_note(
                     f"Agent-step observability persistence also failed: {observability_error}"
