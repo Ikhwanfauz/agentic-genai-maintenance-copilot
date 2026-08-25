@@ -37,6 +37,7 @@ from app.schemas.maintenance import (
 )
 from app.schemas.observability import (
     AgentStepRecordInput,
+    ModelUsageRecordInput,
     ToolCallRecordInput,
 )
 from app.schemas.rag import (
@@ -89,4 +90,5 @@ __all__ = [
     "AgentRunResponse",
     "AgentStepRecordInput",
     "ToolCallRecordInput",
+    "ModelUsageRecordInput",
 ]

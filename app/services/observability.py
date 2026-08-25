@@ -14,6 +14,7 @@ from app.models.enums import (
 )
 from app.schemas.observability import (
     AgentStepRecordInput,
+    ModelUsageRecordInput,
     ToolCallRecordInput,
 )
 from app.services.exceptions import (
@@ -93,7 +94,7 @@ def _load_approval(
 
 def _commit_record(
     database_session: Session,
-    record: AgentStep | ToolCall,
+    record: AgentRun | AgentStep | ToolCall,
 ) -> None:
     try:
         database_session.add(record)
@@ -104,6 +105,28 @@ def _commit_record(
         raise ObservabilityPersistenceError(
             "The observability database transaction failed."
         ) from error
+
+
+def record_model_usage(
+    database_session: Session,
+    record_input: ModelUsageRecordInput,
+) -> AgentRun:
+    run = _load_agent_run(
+        database_session,
+        record_input.run_id,
+    )
+
+    run.model_calls += record_input.model_calls
+    run.prompt_tokens += record_input.prompt_tokens
+    run.completion_tokens += record_input.completion_tokens
+    run.total_tokens += record_input.total_tokens
+
+    _commit_record(
+        database_session,
+        run,
+    )
+
+    return run
 
 
 def get_next_agent_step_number(

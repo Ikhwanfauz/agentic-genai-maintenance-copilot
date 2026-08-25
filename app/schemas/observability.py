@@ -21,6 +21,52 @@ class ObservabilityModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ModelUsageRecordInput(ObservabilityModel):
+    run_id: str = Field(
+        min_length=1,
+        max_length=36,
+    )
+    model_calls: int = Field(
+        default=1,
+        gt=0,
+    )
+    prompt_tokens: int = Field(
+        default=0,
+        ge=0,
+    )
+    completion_tokens: int = Field(
+        default=0,
+        ge=0,
+    )
+    total_tokens: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    @field_validator(
+        "run_id",
+        mode="before",
+    )
+    @classmethod
+    def normalize_run_id(
+        cls,
+        value: object,
+    ) -> object:
+        if isinstance(value, str):
+            return value.strip()
+
+        return value
+
+    @model_validator(mode="after")
+    def enforce_token_total(self) -> Self:
+        expected_total = self.prompt_tokens + self.completion_tokens
+
+        if self.total_tokens != expected_total:
+            raise ValueError("Total tokens must equal prompt plus completion tokens.")
+
+        return self
+
+
 class AgentStepRecordInput(ObservabilityModel):
     run_id: str = Field(
         min_length=1,

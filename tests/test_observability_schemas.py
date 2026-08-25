@@ -10,6 +10,7 @@ from app.models.enums import (
 )
 from app.schemas.observability import (
     AgentStepRecordInput,
+    ModelUsageRecordInput,
     ToolCallRecordInput,
 )
 
@@ -189,3 +190,33 @@ def test_blocked_state_changing_tool_call_can_be_audited_without_approval() -> N
 
     assert record.status == ToolCallStatus.BLOCKED
     assert record.approval_id is None
+
+
+def test_model_usage_contract_accepts_exact_token_total() -> None:
+    record = ModelUsageRecordInput(
+        run_id="  run-observe-001 ",
+        model_calls=1,
+        prompt_tokens=120,
+        completion_tokens=30,
+        total_tokens=150,
+    )
+
+    assert record.run_id == "run-observe-001"
+    assert record.model_calls == 1
+    assert record.prompt_tokens == 120
+    assert record.completion_tokens == 30
+    assert record.total_tokens == 150
+
+
+def test_model_usage_contract_rejects_inconsistent_total() -> None:
+    with pytest.raises(
+        ValidationError,
+        match="must equal prompt plus completion",
+    ):
+        ModelUsageRecordInput(
+            run_id="run-observe-001",
+            model_calls=1,
+            prompt_tokens=120,
+            completion_tokens=30,
+            total_tokens=999,
+        )

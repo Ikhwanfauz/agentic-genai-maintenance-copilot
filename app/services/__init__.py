@@ -31,6 +31,7 @@ from app.services.exceptions import (
 from app.services.observability import (
     get_next_agent_step_number,
     record_agent_step,
+    record_model_usage,
     record_tool_call,
 )
 
@@ -66,4 +67,5 @@ __all__ = [
     "record_agent_step",
     "record_tool_call",
     "get_next_agent_step_number",
+    "record_model_usage",
 ]

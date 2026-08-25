@@ -29,6 +29,7 @@ from app.models.enums import (
 from app.models.work_order import WorkOrder
 from app.schemas.observability import (
     AgentStepRecordInput,
+    ModelUsageRecordInput,
     ToolCallRecordInput,
 )
 from app.services.exceptions import (
@@ -38,6 +39,7 @@ from app.services.exceptions import (
 )
 from app.services.observability import (
     record_agent_step,
+    record_model_usage,
     record_tool_call,
 )
 
@@ -405,4 +407,68 @@ def test_state_changing_tool_call_rejects_wrong_approval_scope(
         record_tool_call(
             database_session,
             record,
+        )
+
+
+def test_record_model_usage_accumulates_run_metrics(
+    database_session: Session,
+) -> None:
+    first_result = record_model_usage(
+        database_session,
+        ModelUsageRecordInput(
+            run_id="run-observe-001",
+            model_calls=1,
+            prompt_tokens=100,
+            completion_tokens=25,
+            total_tokens=125,
+        ),
+    )
+    second_result = record_model_usage(
+        database_session,
+        ModelUsageRecordInput(
+            run_id="run-observe-001",
+            model_calls=1,
+            prompt_tokens=80,
+            completion_tokens=20,
+            total_tokens=100,
+        ),
+    )
+
+    assert first_result.id == second_result.id
+    assert second_result.model_calls == 2
+    assert second_result.prompt_tokens == 180
+    assert second_result.completion_tokens == 45
+    assert second_result.total_tokens == 225
+    assert second_result.estimated_cost_usd == 0.0
+
+
+def test_record_model_usage_counts_call_without_metadata(
+    database_session: Session,
+) -> None:
+    run = record_model_usage(
+        database_session,
+        ModelUsageRecordInput(
+            run_id="run-observe-001",
+        ),
+    )
+
+    assert run.model_calls == 1
+    assert run.prompt_tokens == 0
+    assert run.completion_tokens == 0
+    assert run.total_tokens == 0
+    assert run.estimated_cost_usd == 0.0
+
+
+def test_record_model_usage_rejects_unknown_run(
+    database_session: Session,
+) -> None:
+    with pytest.raises(
+        ObservabilityReferenceError,
+        match="was not found",
+    ):
+        record_model_usage(
+            database_session,
+            ModelUsageRecordInput(
+                run_id="missing-run",
+            ),
         )
