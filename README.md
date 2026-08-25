@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V5 - Human-in-the-Loop Actions Complete**
+Current version: **V6 - Application and Observability Complete**
 
 Implemented:
 
@@ -49,17 +49,42 @@ Implemented:
 - Correctable re-interrupt behavior for invalid resume payloads
 - End-to-end approved and rejected work-order journeys
 - Application-level approval without physical execution
+- Typed REST contracts for investigation, run status, and human decisions
+- Persisted agent-run lifecycle and approval-resume workflow services
+- FastAPI investigation, run-status, and approval endpoints
+- Lazy production agent-runtime initialization
+- Durable SQLite-backed runtime and checkpoint recovery
+- Persisted agent-step, tool-call, and model-usage observability
+- Real provider token-usage aggregation without fabricated cost estimates
+- Explicit trusted-type allowlist for strict checkpoint deserialization
+- Typed HTTPX2 client for the operator application
+- Streamlit investigation and human-approval dashboard
+- Revalidated Streamlit session state and stale-approval protection
 - Automated tests with pytest
 - Code formatting and linting with Ruff
-- 146 automated tests at the verified V5 checkpoint
+- 259 automated tests at the verified V6 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
-diagnosis generation, citation capture, and evidence-based abstention.
+diagnosis generation, citation capture, evidence-based abstention, REST delivery,
+Streamlit rendering, persisted observability, and checkpoint recovery after an
+application restart.
 
-V5 human-approved application actions are complete. Agent REST endpoints,
-Streamlit UI, persisted runtime observability, evaluation, Docker, and Azure
-application deployment remain assigned to V6-V8.
+The verified V6 hosted dashboard journey completed one grounded P-101
+investigation using `gpt-5.4-mini`. It recorded 6 model calls, 10,135 provider-
+reported tokens, 13 completed graph steps, four successful read-only tool calls,
+and 11 diagnosis citations in 28.147 seconds. Estimated cost remains `0.0`
+because the application does not fabricate pricing data.
+
+The hosted run completed without a work-order proposal because its recommended
+action was not marked state-changing. The deterministic proposal policy correctly
+refused to manufacture an approval request. Automated tests separately validate
+the complete proposed, approved, rejected, stale-decision, and resume journeys
+using fake models and local application integrations.
+
+V6 application delivery and persisted observability are complete. Evaluation and
+reliability remain assigned to V7, while Docker and Azure application deployment
+remain assigned to V8.
 
 ## Safety Boundary
 
@@ -84,9 +109,9 @@ proposal protection, version and scope validation, durable LangGraph pause/resum
 and fail-closed resume identity checks.
 
 An approved work order remains unexecuted: `executed_at`,
-`execution_summary`, and approval `consumed_at` remain unset. No V5 component
-controls machinery, modifies PLC parameters, bypasses interlocks, or reports that
-physical work occurred.
+`execution_summary`, and approval `consumed_at` remain unset. No application or
+operator-interface component controls machinery, modifies PLC parameters,
+bypasses interlocks, or reports that physical work occurred.
 
 ## Planned Maintenance Workflow
 
@@ -347,6 +372,103 @@ resume commands. They verify:
 
 Automated tests do not make billable hosted-model calls.
 
+## V6 Application and Observability
+
+V6 exposes the grounded LangGraph workflow through typed application services,
+REST endpoints, persisted runtime telemetry, and a Streamlit operator interface.
+The API and UI do not weaken the deterministic grounding or human-approval
+boundaries established in V4 and V5.
+
+### V6.1 Agent REST Contracts
+
+Strict Pydantic contracts define:
+
+- Investigation-start requests
+- Human approval and rejection requests
+- Active, waiting, completed, failed, and abstained run responses
+- Nested diagnosis, proposal, interrupt, and decision payloads
+- Run and thread identity validation
+- Terminal and active lifecycle timestamp rules
+
+Unknown fields are rejected. Streamlit and FastAPI share the same contracts rather
+than maintaining separate untyped payload formats.
+
+### V6.2 Persisted Agent Workflow Services
+
+Application services own the complete REST-facing workflow:
+
+- Start and persist a new agent investigation
+- Return the latest persisted run and checkpoint state
+- Apply a human approval or rejection
+- Resume the correct LangGraph thread
+- Preserve run, thread, work-order, approval, version, and scope identity
+- Return controlled not-found, conflict, persistence, and execution errors
+
+The service layer remains independent of HTTP and can be tested using fake models,
+temporary SQLite databases, and local checkpoints.
+
+### V6.3 FastAPI Routes and Production Runtime
+
+The application exposes:
+
+- `POST /agent/investigations`
+- `GET /agent/runs/{run_id}`
+- `POST /agent/runs/{run_id}/approval`
+
+The production runtime factory composes the database session factory, deterministic
+tools, hosted-model provider, LangGraph, and SQLite checkpointer. Runtime creation
+is lazy and lock-protected, so `GET /health` and application import do not make
+hosted-model calls.
+
+FastAPI lifespan cleanup closes the checkpoint connection safely. Strict
+checkpoint deserialization uses an explicit allowlist containing only trusted
+application state types. Persisted diagnosis, evidence, grounding, proposal, and
+approval state has been verified across process restart.
+
+### V6.4 Persisted Runtime Observability
+
+Every investigation persists an `agent_runs` record. Instrumented graph nodes add
+ordered `agent_steps`, while real tool execution adds linked `tool_calls`.
+
+Recorded telemetry includes:
+
+- Provider and model name
+- Run lifecycle status and duration
+- Ordered graph-node type, status, latency, and controlled failure details
+- Tool name, actual arguments, result or error, and latency
+- Read-only or state-changing classification
+- Approval linkage for non-blocked state-changing calls
+- Model-call count
+- Provider-reported prompt, completion, and total tokens
+
+Model usage is collected from actual `AIMessage.usage_metadata`. Estimated cost is
+left at zero because deployment-specific pricing is not available from the model
+response and is not fabricated.
+
+### V6.5 Streamlit Operator Dashboard
+
+The Streamlit interface provides:
+
+- Configurable FastAPI base URL and request timeout
+- Typed investigation form with asset and iteration controls
+- Revalidated JSON-compatible session state
+- Persisted run refresh
+- Run, thread, and lifecycle status
+- Grounded diagnosis, confidence, likely causes, and safety notes
+- Expandable evidence summaries and citations
+- Recommended-action and proposed-work-order details
+- Explicit human approve and reject controls
+- Required operator identity and decision reason
+- Stale or conflicting approval guidance
+- Final human-decision display
+
+The dashboard uses the typed HTTPX2 client and translates connection, HTTP,
+invalid-JSON, and contract failures into controlled operator messages. It does not
+receive Azure credentials and does not call the hosted model directly.
+
+Automated UI tests use fake clients and Streamlit's application-testing interface.
+Normal test execution does not make billable hosted-model calls.
+
 ## Engineering Document Corpus
 
 The V2 corpus contains three original synthetic documents:
@@ -389,6 +511,8 @@ Alembic maintains the `alembic_version` table to track the active database revis
 - LangGraph SQLite Checkpointer
 - LangChain OpenAI
 - Microsoft Foundry / Azure OpenAI
+- HTTPX2
+- Streamlit
 - pytest
 - Ruff
 
@@ -402,14 +526,20 @@ app/
 |   |-- evidence.py
 |   |-- graph.py
 |   |-- grounding.py
+|   |-- model_observability.py
 |   |-- nodes.py
+|   |-- observability.py
 |   |-- policy.py
 |   |-- proposal.py
+|   |-- runtime.py
 |   |-- state.py
 |   |-- synthesis.py
-|   `-- tool_node.py
+|   |-- tool_node.py
+|   `-- tool_observability.py
 |-- api/
+|   |-- dependencies.py
 |   `-- routes/
+|       |-- agent.py
 |       `-- health.py
 |-- core/
 |   |-- config.py
@@ -425,16 +555,26 @@ app/
 |-- rag/
 |-- schemas/
 |   |-- actions.py
+|   |-- agent_api.py
 |   |-- diagnosis.py
 |   |-- evidence.py
 |   |-- hitl.py
 |   |-- investigation.py
+|   |-- observability.py
 |   `-- tool-specific schemas
 |-- services/
+|   |-- agent_workflows.py
 |   |-- approvals.py
 |   |-- exceptions.py
+|   |-- observability.py
 |   `-- work_orders.py
 |-- tools/
+|-- ui/
+|   |-- api_client.py
+|   |-- approval_panel.py
+|   |-- dashboard.py
+|   |-- operator_actions.py
+|   `-- run_views.py
 `-- main.py
 
 data/
@@ -443,6 +583,7 @@ data/
 
 migrations/
 tests/
+streamlit_app.py
 ```
 
 ## Local Setup
@@ -514,9 +655,23 @@ Open:
 - Health endpoint: `http://127.0.0.1:8000/health`
 - Swagger UI: `http://127.0.0.1:8000/docs`
 
-The investigation, proposal, approval, and resume workflows currently operate as
-Python application components. REST endpoints for these workflows are assigned to
-V6.
+Available application endpoints:
+
+- `POST /agent/investigations`
+- `GET /agent/runs/{run_id}`
+- `POST /agent/runs/{run_id}/approval`
+
+The Swagger UI exposes the typed request and response contracts. Starting the API
+or calling `GET /health` does not invoke the hosted model. A hosted-model call
+occurs only when an investigation request reaches the agent workflow.
+
+## Run the Operator Dashboard
+
+Start FastAPI in the first terminal:
+
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
 ## Quality Checks
 
@@ -580,7 +735,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V3 - GenAI and LangGraph Agent Core: complete
 - V4 - Grounded Maintenance Investigation: complete
 - V5 - Human-in-the-Loop Actions: complete
-- V6 - Application and Observability
+- V6 - Application and Observability: complete
 - V7 - Evaluation and Reliability
 - V8 - Docker and Azure
 
