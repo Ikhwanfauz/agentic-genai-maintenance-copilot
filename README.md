@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V6 - Application and Observability Complete**
+Current version: **V7 - Evaluation and Reliability In Progress**
 
 Implemented:
 
@@ -60,9 +60,13 @@ Implemented:
 - Typed HTTPX2 client for the operator application
 - Streamlit investigation and human-approval dashboard
 - Revalidated Streamlit session state and stale-approval protection
+- Typed and versioned evaluation scenario contracts
+- Validated JSON evaluation-dataset loading
+- Balanced 15-scenario core evaluation dataset
+- Normal, degraded, contradictory, insufficient-evidence, and adversarial taxonomy
 - Automated tests with pytest
 - Code formatting and linting with Ruff
-- 259 automated tests at the verified V6 checkpoint
+- 304 automated tests at the verified V7.1 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
@@ -82,9 +86,10 @@ refused to manufacture an approval request. Automated tests separately validate
 the complete proposed, approved, rejected, stale-decision, and resume journeys
 using fake models and local application integrations.
 
-V6 application delivery and persisted observability are complete. Evaluation and
-reliability remain assigned to V7, while Docker and Azure application deployment
-remain assigned to V8.
+V6 application delivery and persisted observability are complete. V7 evaluation
+and reliability are now in progress. V7.1 establishes the typed evaluation
+contracts and versioned core scenario dataset, while Docker and Azure application
+deployment remain assigned to V8.
 
 ## Safety Boundary
 
@@ -469,6 +474,43 @@ receive Azure credentials and does not call the hosted model directly.
 Automated UI tests use fake clients and Streamlit's application-testing interface.
 Normal test execution does not make billable hosted-model calls.
 
+## V7 Evaluation and Reliability
+
+### V7.1 Evaluation Contracts and Core Dataset
+
+V7.1 defines the machine-readable specification used by later evaluation runners
+and scorers.
+
+Strict Pydantic contracts define:
+
+- Versioned evaluation datasets and scenario identities
+- Normal, degraded, contradictory, insufficient-evidence, and adversarial taxonomy
+- Expected tool names, arguments, and call ranges
+- Required and forbidden tools
+- Expected terminal status, diagnosis outcome, and grounding decision
+- Required evidence sources and diagnosis citations
+- Claim locations, required concepts, and supporting citations
+- Explicit citation exceptions for missing-evidence limitations
+- Proposal and approval-pause expectations
+- Global safety invariants
+
+The versioned `v7.core` JSON dataset contains 15 scenarios, with three scenarios
+for each required taxonomy category. It includes grounded and abstained outcomes,
+proposal and no-proposal paths, partial and unavailable evidence, contradictory
+user claims, prompt injection, approval bypass attempts, and prohibited direct
+machinery-control requests.
+
+The dataset loader rejects empty paths, missing files, malformed JSON, non-object
+roots, unknown fields, duplicate scenario identities, duplicate required
+categories, and missing declared taxonomy categories.
+
+V7.1 scenarios are evaluation specifications; they are not fabricated evaluation
+scores and do not yet execute the agent. Deterministic scorers and the fake-model
+scenario runner remain assigned to the next V7 subversions.
+
+The verified V7.1 checkpoint contains 304 automated tests. Normal automated tests
+make zero billable hosted-model calls.
+
 ## Engineering Document Corpus
 
 The V2 corpus contains three original synthetic documents:
@@ -736,7 +778,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V4 - Grounded Maintenance Investigation: complete
 - V5 - Human-in-the-Loop Actions: complete
 - V6 - Application and Observability: complete
-- V7 - Evaluation and Reliability
+- V7 - Evaluation and Reliability: in progress (V7.1 complete)
 - V8 - Docker and Azure
 
 The MVP is complete only after V8 works end-to-end.
