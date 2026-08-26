@@ -64,9 +64,12 @@ Implemented:
 - Validated JSON evaluation-dataset loading
 - Balanced 15-scenario core evaluation dataset
 - Normal, degraded, contradictory, insufficient-evidence, and adversarial taxonomy
+- Strict machine-readable deterministic evaluation results
+- Outcome, evidence, citation, tool, claim, safety, and trajectory scorers
+- Fail-closed proposal, approval, and physical-execution evaluation boundaries
 - Automated tests with pytest
 - Code formatting and linting with Ruff
-- 304 automated tests at the verified V7.1 checkpoint
+- 378 automated tests at the verified V7.2 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
@@ -88,8 +91,10 @@ using fake models and local application integrations.
 
 V6 application delivery and persisted observability are complete. V7 evaluation
 and reliability are now in progress. V7.1 establishes the typed evaluation
-contracts and versioned core scenario dataset, while Docker and Azure application
-deployment remain assigned to V8.
+contracts and versioned core scenario dataset. V7.2 adds pure deterministic
+scorers with machine-readable pass/fail results. The fake-model scenario runner,
+failure injection, regression reports, and CI remain later V7 work, while Docker
+and Azure application deployment remain assigned to V8.
 
 ## Safety Boundary
 
@@ -505,10 +510,41 @@ roots, unknown fields, duplicate scenario identities, duplicate required
 categories, and missing declared taxonomy categories.
 
 V7.1 scenarios are evaluation specifications; they are not fabricated evaluation
-scores and do not yet execute the agent. Deterministic scorers and the fake-model
-scenario runner remain assigned to the next V7 subversions.
+scores and do not execute the agent by themselves.
 
-The verified V7.1 checkpoint contains 304 automated tests. Normal automated tests
+### V7.2 Deterministic Scorers
+
+V7.2 provides pure deterministic scoring functions for:
+
+- Terminal run status, investigation outcome, and grounding decision
+- Required evidence-source coverage
+- Exact citation validity and required-citation completeness
+- Required and forbidden tool selection
+- Exact tool-argument correctness
+- Required diagnosis concepts at declared claim locations
+- Expected citation support for citation-required claims
+- Forbidden claim concepts
+- Deterministic work-order proposal eligibility
+- Human-approval pause integrity
+- Bounded graph trajectory behavior
+- The read-only physical-execution boundary
+
+Every metric produces a strict machine-readable binary result containing its
+metric name, pass or fail status, score, summary, expected value, actual value,
+and failure details. All current V7.2 metrics pass only with a score of `1.0`;
+binary failures receive `0.0` and explicit diagnostic details.
+
+Claim support is currently a deterministic external proxy: it verifies that each
+citation-required expected claim has its declared citation in the diagnosis
+evidence list. The production diagnosis schema does not yet represent a direct
+claim-to-citation semantic link, so V7.2 does not fabricate semantic-entailment
+scores.
+
+The scorers consume typed application schemas and observability records but do
+not execute the agent, access the database, or invoke a hosted model. The
+fake-model scenario runner remains assigned to V7.3.
+
+The verified V7.2 checkpoint contains 378 automated tests. Normal automated tests
 make zero billable hosted-model calls.
 
 ## Engineering Document Corpus
@@ -778,7 +814,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V4 - Grounded Maintenance Investigation: complete
 - V5 - Human-in-the-Loop Actions: complete
 - V6 - Application and Observability: complete
-- V7 - Evaluation and Reliability: in progress (V7.1 complete)
+- V7 - Evaluation and Reliability: in progress (V7.2 complete)
 - V8 - Docker and Azure
 
 The MVP is complete only after V8 works end-to-end.
