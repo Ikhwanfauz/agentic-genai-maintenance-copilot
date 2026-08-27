@@ -2,11 +2,6 @@ from collections.abc import Generator
 from unittest.mock import Mock
 
 import pytest
-from app.services.exceptions import (
-    WorkOrderAssetNotFoundError,
-    WorkOrderIdempotencyConflictError,
-)
-from app.services.work_orders import propose_work_order
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -35,6 +30,11 @@ from app.schemas.investigation import (
     DiagnosisGroundingResult,
     GroundingDecision,
 )
+from app.services.exceptions import (
+    WorkOrderAssetNotFoundError,
+    WorkOrderIdempotencyConflictError,
+)
+from app.services.work_orders import propose_work_order
 
 
 @pytest.fixture
