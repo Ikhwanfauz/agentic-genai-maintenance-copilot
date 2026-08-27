@@ -67,9 +67,15 @@ Implemented:
 - Strict machine-readable deterministic evaluation results
 - Outcome, evidence, citation, tool, claim, safety, and trajectory scorers
 - Fail-closed proposal, approval, and physical-execution evaluation boundaries
+- Deterministic fixture registry and scripted model responses
+- Asset-scoped evaluation failure injection
+- Fresh isolated SQLite, Chroma, and checkpoint environments per scenario
+- Real LangGraph execution across all 15 core evaluation scenarios
+- Machine-readable JSON regression reports
+- Command-line deterministic evaluation runner
 - Automated tests with pytest
 - Code formatting and linting with Ruff
-- 378 automated tests at the verified V7.2 checkpoint
+- 487 automated tests at the verified V7.3 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
@@ -92,9 +98,11 @@ using fake models and local application integrations.
 V6 application delivery and persisted observability are complete. V7 evaluation
 and reliability are now in progress. V7.1 establishes the typed evaluation
 contracts and versioned core scenario dataset. V7.2 adds pure deterministic
-scorers with machine-readable pass/fail results. The fake-model scenario runner,
-failure injection, regression reports, and CI remain later V7 work, while Docker
-and Azure application deployment remain assigned to V8.
+scorers with machine-readable pass/fail results. V7.3 executes all 15 scenarios
+through the real LangGraph workflow using deterministic scripted models, isolated
+SQLite and Chroma environments, controlled failure injection, and machine-readable
+JSON regression reports. CI remains later V7 work, while Docker and Azure
+application deployment remain assigned to V8.
 
 ## Safety Boundary
 
@@ -541,11 +549,39 @@ claim-to-citation semantic link, so V7.2 does not fabricate semantic-entailment
 scores.
 
 The scorers consume typed application schemas and observability records but do
-not execute the agent, access the database, or invoke a hosted model. The
-fake-model scenario runner remains assigned to V7.3.
+not execute the agent, access the database, or invoke a hosted model.
+Deterministic scenario execution is supplied by V7.3.
 
 The verified V7.2 checkpoint contains 378 automated tests. Normal automated tests
 make zero billable hosted-model calls.
+
+### V7.3 Deterministic Scenario Runner and Regression Report
+
+V7.3 executes the complete 15-scenario core dataset through the real LangGraph
+workflow without making billable hosted-model calls. Each scenario receives a
+fresh isolated working environment containing a seeded SQLite database, persistent
+Chroma collection, LangGraph checkpoint database, and scenario-scoped fixture
+mutations.
+
+Deterministic scripted models preserve the real model-tool-model transitions while
+controlling tool calls and structured diagnoses. The mutation layer supports
+asset-scoped missing, empty, limited, contradictory, and adversarial evidence
+conditions without modifying the source dataset.
+
+The runner collects real workflow state and persisted observability records before
+applying every V7.2 metric. It returns typed scenario and dataset results with
+distinct `passed`, `failed`, and `error` outcomes.
+
+The command-line runner writes an atomic machine-readable JSON report:
+
+```bash
+python -m app.evaluation.cli
+```
+
+The verified `v7.core` regression run completed all 15 scenarios with 15 passed,
+zero failed, and zero execution errors. The verified V7.3 checkpoint contains 487
+automated tests. Normal evaluation and automated-test execution make zero billable
+hosted-model calls.
 
 ## Engineering Document Corpus
 
@@ -622,6 +658,17 @@ app/
 |-- core/
 |   |-- config.py
 |   `-- logging.py
+|-- evaluation/
+|   |-- cli.py
+|   |-- environment.py
+|   |-- execution.py
+|   |-- fixture_registry.py
+|   |-- fixtures.py
+|   |-- mutations.py
+|   |-- reporting.py
+|   |-- runner.py
+|   |-- scoring.py
+|   `-- scripted_models.py
 |-- db/
 |   |-- base.py
 |   |-- session.py
@@ -771,6 +818,16 @@ Run automated tests:
 python -m pytest
 ```
 
+Run the complete deterministic evaluation dataset:
+
+```bash
+python -m app.evaluation.cli
+```
+
+The default machine-readable report is written to
+`reports/evaluation/v7_core_result.json`. Use `--overwrite` only when intentionally
+replacing an existing report.
+
 Check dependency compatibility:
 
 ```bash
@@ -814,7 +871,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V4 - Grounded Maintenance Investigation: complete
 - V5 - Human-in-the-Loop Actions: complete
 - V6 - Application and Observability: complete
-- V7 - Evaluation and Reliability: in progress (V7.2 complete)
+- V7 - Evaluation and Reliability: in progress (V7.3 complete)
 - V8 - Docker and Azure
 
 The MVP is complete only after V8 works end-to-end.
