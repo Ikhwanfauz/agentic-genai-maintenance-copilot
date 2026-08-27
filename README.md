@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V8 - Docker and Azure In Progress (V8.2 complete)**
+Current version: **V8 - Docker and Azure In Progress (V8.3 complete)**
 
 Implemented:
 
@@ -73,7 +73,7 @@ Implemented:
 - Real LangGraph execution across all 15 core evaluation scenarios
 - Machine-readable JSON regression reports
 - Command-line deterministic evaluation runner
-- GitHub Actions continuous-integration quality gate
+- GitHub Actions Docker build and container-health smoke-test gate
 - Cross-platform Ruff import classification
 - Non-root Docker image with CPU-only PyTorch dependencies
 - Idempotent Alembic, seed-data, and RAG-index container initialization
@@ -81,7 +81,7 @@ Implemented:
 - Persistent runtime storage with container health and secret-isolation boundaries
 - Automated tests with pytest
 - Code formatting and linting with Ruff
-- 508 automated tests at the verified V8.2 checkpoint
+- 513 automated tests at the verified V8.3 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
@@ -946,6 +946,6 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V5 - Human-in-the-Loop Actions: complete
 - V6 - Application and Observability: complete
 - V7 - Evaluation and Reliability: complete
-- V8 - Docker and Azure: in progress (V8.2 complete)
+- V8 - Docker and Azure: in progress (V8.3 complete)
 
 The MVP is complete only after V8 works end-to-end.
