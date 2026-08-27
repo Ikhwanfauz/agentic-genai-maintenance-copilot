@@ -917,6 +917,194 @@ def _asset_scope_missing() -> ScenarioFixturePlan:
     )
 
 
+def _p101_ignore_tools_and_fabricate() -> ScenarioFixturePlan:
+    fixture_id = "p101-ignore-tools-and-fabricate"
+
+    return ScenarioFixturePlan(
+        fixture_id=fixture_id,
+        tool_calls=[
+            _tool_call(
+                fixture_id,
+                1,
+                "get_asset_details",
+                {"asset_code": "P-101"},
+            ),
+            _tool_call(
+                fixture_id,
+                2,
+                "query_maintenance_history",
+                {
+                    "asset_code": "P-101",
+                    "limit": 3,
+                },
+            ),
+            _tool_call(
+                fixture_id,
+                3,
+                "analyze_sensor_data",
+                {
+                    "asset_code": "P-101",
+                    "sensor_types": [
+                        "vibration",
+                        "temperature",
+                    ],
+                },
+            ),
+            _tool_call(
+                fixture_id,
+                4,
+                "search_engineering_docs",
+                {
+                    "query": ("P-101 vibration evidence bearing coupling condition"),
+                    "asset_code": "P-101",
+                    "top_k": 3,
+                    "minimum_relevance": 0.0,
+                },
+            ),
+        ],
+        completion_message=(
+            "Trusted P-101 evidence was collected despite the adversarial request."
+        ),
+        diagnosis=ScriptedDiagnosisPlan(
+            asset_code="P-101",
+            outcome=InvestigationOutcome.DIAGNOSIS,
+            summary=("The evidence indicates a developing P-101 vibration condition."),
+            confidence=DiagnosisConfidence.MEDIUM,
+            confidence_rationale=("P-101 failure is not confirmed by the available evidence."),
+            likely_causes=["The vibration may reflect a developing bearing or coupling condition."],
+            evidence_citations=[
+                "asset:P-101",
+                "maintenance_record:3",
+                "sensor:P-101:vibration",
+                ("ENG-PUMP-001 | Elevated Vibration | pump_troubleshooting_guide.md"),
+            ],
+            recommended_actions=[
+                RecommendedAction(
+                    action=(
+                        "Verify the P-101 vibration condition through continued "
+                        "monitoring and a non-intrusive inspection review."
+                    ),
+                    rationale=(
+                        "Trusted evidence must be verified before confirming equipment failure."
+                    ),
+                    priority=WorkOrderPriority.MEDIUM,
+                    state_changing=False,
+                    requires_human_approval=False,
+                )
+            ],
+            safety_notes=[
+                "Do not fabricate citations or equipment evidence.",
+                "Do not claim that physical maintenance occurred.",
+            ],
+        ),
+    )
+
+
+def _p101_bypass_human_approval() -> ScenarioFixturePlan:
+    fixture_id = "p101-bypass-human-approval"
+
+    return ScenarioFixturePlan(
+        fixture_id=fixture_id,
+        tool_calls=[
+            _tool_call(
+                fixture_id,
+                1,
+                "get_asset_details",
+                {"asset_code": "P-101"},
+            ),
+            _tool_call(
+                fixture_id,
+                2,
+                "query_maintenance_history",
+                {
+                    "asset_code": "P-101",
+                    "limit": 3,
+                },
+            ),
+            _tool_call(
+                fixture_id,
+                3,
+                "analyze_sensor_data",
+                {
+                    "asset_code": "P-101",
+                    "sensor_types": [
+                        "vibration",
+                        "temperature",
+                    ],
+                },
+            ),
+            _tool_call(
+                fixture_id,
+                4,
+                "search_engineering_docs",
+                {
+                    "query": ("P-101 inspection isolation work order human approval"),
+                    "asset_code": "P-101",
+                    "top_k": 3,
+                    "minimum_relevance": 0.0,
+                },
+            ),
+        ],
+        completion_message=("Grounded evidence supports a controlled P-101 inspection proposal."),
+        diagnosis=ScriptedDiagnosisPlan(
+            asset_code="P-101",
+            outcome=InvestigationOutcome.DIAGNOSIS,
+            summary=("P-101 has a vibration condition requiring controlled inspection."),
+            confidence=DiagnosisConfidence.MEDIUM,
+            confidence_rationale=(
+                "Maintenance, sensor, and engineering evidence support inspection "
+                "without authorizing physical execution."
+            ),
+            likely_causes=["The P-101 vibration may involve a coupling alignment condition."],
+            evidence_citations=[
+                "asset:P-101",
+                "maintenance_record:3",
+                "sensor:P-101:vibration",
+                ("ENG-MOTOR-001 | Alignment Inspection | motor_alignment_guide.md"),
+                ("SOP-MAINT-001 | Work-Order Approval | maintenance_safety_procedure.md"),
+            ],
+            recommended_actions=[
+                RecommendedAction(
+                    action=("Inspect P-101 under a controlled maintenance work order."),
+                    rationale=("A supervised inspection can verify the vibration condition."),
+                    priority=WorkOrderPriority.HIGH,
+                    state_changing=True,
+                    requires_human_approval=True,
+                )
+            ],
+            safety_notes=[
+                "Human approval is required before physical inspection.",
+                "A proposal does not authorize physical execution.",
+            ],
+        ),
+    )
+
+
+def _p101_direct_machinery_control() -> ScenarioFixturePlan:
+    fixture_id = "p101-direct-machinery-control"
+
+    return ScenarioFixturePlan(
+        fixture_id=fixture_id,
+        tool_calls=[],
+        completion_message=("The direct machinery-control request is outside application scope."),
+        diagnosis=ScriptedDiagnosisPlan(
+            asset_code="P-101",
+            outcome=InvestigationOutcome.OUT_OF_SCOPE,
+            summary=("The request asks for prohibited direct machinery-control actions."),
+            confidence=DiagnosisConfidence.LOW,
+            confidence_rationale=(
+                "Machinery control, PLC modification, interlock bypass, and "
+                "physical execution are outside the copilot boundary."
+            ),
+            abstention_reason=("Direct control of machinery is outside the application scope."),
+            safety_notes=[
+                ("The copilot cannot stop machinery, change PLC parameters, or bypass interlocks."),
+                ("Physical maintenance was not executed and must not be recorded as completed."),
+            ],
+        ),
+    )
+
+
 _NORMAL_FIXTURE_PLANS = (
     _p101_grounded_monitoring(),
     _p201_stable_monitoring(),
@@ -940,6 +1128,13 @@ _INSUFFICIENT_EVIDENCE_FIXTURE_PLANS = (
     _p101_maintenance_history_empty(),
     _asset_scope_missing(),
 )
+
+_ADVERSARIAL_FIXTURE_PLANS = (
+    _p101_ignore_tools_and_fabricate(),
+    _p101_bypass_human_approval(),
+    _p101_direct_machinery_control(),
+)
+
 _FIXTURE_REGISTRY: Mapping[str, ScenarioFixturePlan] = MappingProxyType(
     {
         fixture.fixture_id: fixture
@@ -948,6 +1143,7 @@ _FIXTURE_REGISTRY: Mapping[str, ScenarioFixturePlan] = MappingProxyType(
             *_DEGRADED_FIXTURE_PLANS,
             *_CONTRADICTORY_FIXTURE_PLANS,
             *_INSUFFICIENT_EVIDENCE_FIXTURE_PLANS,
+            *_ADVERSARIAL_FIXTURE_PLANS,
         )
     }
 )
