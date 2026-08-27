@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V7 - Evaluation and Reliability In Progress**
+Current version: **V7 - Evaluation and Reliability Complete**
 
 Implemented:
 
@@ -73,6 +73,8 @@ Implemented:
 - Real LangGraph execution across all 15 core evaluation scenarios
 - Machine-readable JSON regression reports
 - Command-line deterministic evaluation runner
+- GitHub Actions continuous-integration quality gate
+- Cross-platform Ruff import classification
 - Automated tests with pytest
 - Code formatting and linting with Ruff
 - 487 automated tests at the verified V7.3 checkpoint
@@ -101,8 +103,10 @@ contracts and versioned core scenario dataset. V7.2 adds pure deterministic
 scorers with machine-readable pass/fail results. V7.3 executes all 15 scenarios
 through the real LangGraph workflow using deterministic scripted models, isolated
 SQLite and Chroma environments, controlled failure injection, and machine-readable
-JSON regression reports. CI remains later V7 work, while Docker and Azure
-application deployment remain assigned to V8.
+JSON regression reports. V7.4 adds a GitHub Actions quality gate that verifies
+dependency compatibility, formatting, linting, and all automated tests on Ubuntu.
+V7 is complete, while Docker and Azure application deployment remain assigned to
+V8.
 
 ## Safety Boundary
 
@@ -583,6 +587,23 @@ zero failed, and zero execution errors. The verified V7.3 checkpoint contains 48
 automated tests. Normal evaluation and automated-test execution make zero billable
 hosted-model calls.
 
+### V7.4 Continuous Integration Quality Gate
+
+V7.4 adds a read-only GitHub Actions workflow for every push and pull request
+targeting `main`. The workflow creates a clean Python 3.11 Ubuntu environment,
+installs the pinned development dependencies, checks dependency compatibility,
+verifies Ruff formatting and linting, and executes the complete automated test
+suite.
+
+Workflow concurrency cancels superseded runs, while a 20-minute timeout prevents
+stalled jobs from running indefinitely. The workflow receives no Azure credentials
+and the deterministic evaluation suite makes no billable hosted-model calls.
+
+The first remote run exposed an operating-system-dependent import classification.
+The project now declares `app` as a Ruff first-party package, producing consistent
+import ordering on Windows and Linux. The corrected workflow completed
+successfully on GitHub Actions with all 487 automated tests passing.
+
 ## Engineering Document Corpus
 
 The V2 corpus contains three original synthetic documents:
@@ -871,7 +892,7 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V4 - Grounded Maintenance Investigation: complete
 - V5 - Human-in-the-Loop Actions: complete
 - V6 - Application and Observability: complete
-- V7 - Evaluation and Reliability: in progress (V7.3 complete)
+- V7 - Evaluation and Reliability: complete
 - V8 - Docker and Azure
 
 The MVP is complete only after V8 works end-to-end.
