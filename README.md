@@ -77,7 +77,7 @@ Implemented:
 - Cross-platform Ruff import classification
 - Automated tests with pytest
 - Code formatting and linting with Ruff
-- 487 automated tests at the verified V7.3 checkpoint
+- 487 automated tests at the verified V7.4 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
@@ -98,7 +98,7 @@ the complete proposed, approved, rejected, stale-decision, and resume journeys
 using fake models and local application integrations.
 
 V6 application delivery and persisted observability are complete. V7 evaluation
-and reliability are now in progress. V7.1 establishes the typed evaluation
+and reliability are complete. V7.1 establishes the typed evaluation
 contracts and versioned core scenario dataset. V7.2 adds pure deterministic
 scorers with machine-readable pass/fail results. V7.3 executes all 15 scenarios
 through the real LangGraph workflow using deterministic scripted models, isolated
