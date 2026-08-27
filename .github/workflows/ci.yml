@@ -45,3 +45,65 @@ jobs:
 
       - name: Run automated tests
         run: python -m pytest
+
+  container:
+    name: Docker build and health smoke test
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Build container image
+        run: docker build --tag maintenance-copilot:ci .
+
+      - name: Verify non-root image configuration
+        run: |
+          test "$(
+            docker image inspect maintenance-copilot:ci \
+              --format '{{.Config.User}}'
+          )" = "maintenance"
+
+      - name: Start API container
+        run: |
+          docker run \
+            --detach \
+            --name maintenance-copilot-ci \
+            --publish 127.0.0.1:8000:8000 \
+            maintenance-copilot:ci
+
+      - name: Wait for healthy API
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent \
+              http://127.0.0.1:8000/health \
+              > /tmp/maintenance-health.json; then
+              cat /tmp/maintenance-health.json
+              exit 0
+            fi
+
+            if [ "$(
+              docker inspect \
+                --format '{{.State.Running}}' \
+                maintenance-copilot-ci
+            )" != "true" ]; then
+              echo "Container stopped before becoming healthy."
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          echo "API did not become healthy within 300 seconds."
+          exit 1
+
+      - name: Show container logs
+        if: always()
+        run: docker logs maintenance-copilot-ci || true
+
+      - name: Remove smoke-test container
+        if: always()
+        run: docker rm --force maintenance-copilot-ci || true
