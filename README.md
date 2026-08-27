@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V7 - Evaluation and Reliability Complete**
+Current version: **V8 - Docker and Azure In Progress (V8.2 complete)**
 
 Implemented:
 
@@ -75,9 +75,13 @@ Implemented:
 - Command-line deterministic evaluation runner
 - GitHub Actions continuous-integration quality gate
 - Cross-platform Ruff import classification
+- Non-root Docker image with CPU-only PyTorch dependencies
+- Idempotent Alembic, seed-data, and RAG-index container initialization
+- Docker Compose orchestration for the API and Streamlit dashboard
+- Persistent runtime storage with container health and secret-isolation boundaries
 - Automated tests with pytest
 - Code formatting and linting with Ruff
-- 487 automated tests at the verified V7.4 checkpoint
+- 508 automated tests at the verified V8.2 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
@@ -818,6 +822,55 @@ Start FastAPI in the first terminal:
 ```bash
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+## Docker and Local Orchestration
+
+V8.1 provides a production-oriented API image based on Python 3.11 slim with
+CPU-only PyTorch dependencies. The container runs as the non-root `maintenance`
+user, exposes port 8000, writes application data only under `/app/runtime`, and
+uses the API health endpoint for its container health check.
+
+V8.2 adds an idempotent container startup process. When
+`INITIALIZE_APPLICATION_DATA=true`, startup applies Alembic migrations, seeds the
+SQLite database, and indexes the engineering-document corpus before launching the
+requested application process. Repeated startup preserves existing seeded data.
+
+Docker Compose runs the API and Streamlit dashboard from the same image. The API
+receives application credentials through `.env`, while the dashboard communicates
+with the API over the internal Compose network without receiving Azure credentials.
+A named volume preserves the SQLite database, Chroma collection, model cache, and
+LangGraph checkpoint data across normal container restarts.
+
+Build and start the complete local stack:
+
+```bash
+docker compose up --build --detach
+```
+
+Check container health:
+
+```bash
+docker compose ps
+docker compose logs --tail 50 api
+```
+
+Open the services:
+
+- API health: `http://127.0.0.1:8000/health`
+- Streamlit dashboard: `http://127.0.0.1:8501`
+
+Stop the stack while preserving runtime data:
+
+```bash
+docker compose down
+```
+
+Running `docker compose down --volumes` also deletes the named runtime volume and
+its persisted local application data.
+
+The V8.2 hosted smoke test successfully executed a real grounded P-101
+investigation through the dashboard, Compose network, API, LangGraph workflow,
+Azure-hosted model, SQLite tools, and engineering-document retrieval layer.
+No physical maintenance execution or machinery-control action was performed.
 
 ## Quality Checks
 
@@ -893,6 +946,6 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V5 - Human-in-the-Loop Actions: complete
 - V6 - Application and Observability: complete
 - V7 - Evaluation and Reliability: complete
-- V8 - Docker and Azure
+- V8 - Docker and Azure: in progress (V8.2 complete)
 
 The MVP is complete only after V8 works end-to-end.

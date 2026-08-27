@@ -22,6 +22,7 @@ def test_dockerfile_enforces_non_root_health_contract() -> None:
     assert user_position < command_position
     assert "EXPOSE 8000" in content
     assert "HEALTHCHECK" in content
+    assert 'ENTRYPOINT ["python", "-m", "app.container_startup"]' in content
     assert "http://127.0.0.1:8000/health" in content
     assert '"--host", "0.0.0.0"' in content
 

@@ -1,0 +1,86 @@
+name: maintenance-copilot
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: maintenance-copilot:local
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+      INITIALIZE_APPLICATION_DATA: "true"
+      DATABASE_URL: sqlite:////app/runtime/maintenance_copilot.db
+      LANGGRAPH_CHECKPOINT_PATH: /app/runtime/langgraph_checkpoints.sqlite
+      ENGINEERING_DOCS_PATH: /app/data/engineering_docs
+      VECTOR_STORE_PATH: /app/runtime/chroma
+      HF_HOME: /app/runtime/huggingface
+    ports:
+      - "8000:8000"
+    volumes:
+      - maintenance-runtime:/app/runtime
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request; urllib.request.urlopen( 'http://127.0.0.1:8000/health', timeout=3)
+      interval: 30s
+      timeout: 5s
+      start_period: 180s
+      retries: 3
+
+  dashboard:
+    image: maintenance-copilot:local
+    environment:
+      APP_ENV: production
+      INITIALIZE_APPLICATION_DATA: "false"
+      MAINTENANCE_API_BASE_URL: http://api:8000
+      MAINTENANCE_API_TIMEOUT_SECONDS: "120"
+    command:
+      - python
+      - -m
+      - streamlit
+      - run
+      - streamlit_app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+      - --browser.gatherUsageStats=false
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request; urllib.request.urlopen( 'http://127.0.0.1:8501/_stcore/health', timeout=3)
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  maintenance-runtime:
