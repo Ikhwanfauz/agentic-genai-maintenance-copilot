@@ -61,3 +61,74 @@ def test_foundation_uses_managed_identity_for_registry_pull() -> None:
     assert "7f951dda-4ed3-4680-a7ca-43fe172d538d" in foundation
     assert "principalType: 'ServicePrincipal'" in foundation
     assert "azure_openai_api_key" not in foundation.lower()
+
+
+APPS_PATH = Path("infra/apps.bicep")
+
+
+def load_apps() -> str:
+    return APPS_PATH.read_text(encoding="utf-8")
+
+
+def test_apps_require_secure_runtime_parameters() -> None:
+    apps = load_apps()
+
+    assert "@secure()" in apps
+    assert "param azureOpenAiApiKey string" in apps
+    assert "param allowedDashboardIpCidr string" in apps
+    assert "value: azureOpenAiApiKey" in apps
+    assert "secretRef: 'azure-openai-api-key'" in apps
+
+
+def test_apps_use_existing_foundation_resources() -> None:
+    apps = load_apps()
+
+    assert apps.count(" existing = {") == 3
+    assert "Microsoft.App/managedEnvironments" in apps
+    assert "Microsoft.ContainerRegistry/registries" in apps
+    assert "Microsoft.ManagedIdentity/userAssignedIdentities" in apps
+
+
+def test_apps_pull_private_image_with_managed_identity() -> None:
+    apps = load_apps()
+
+    assert "type: 'UserAssigned'" in apps
+    assert "identity: imagePullIdentity.id" in apps
+    assert "server: containerRegistry.properties.loginServer" in apps
+    assert "/maintenance-copilot:${imageTag}" in apps
+
+
+def test_api_is_internal_and_uses_persistent_storage() -> None:
+    apps = load_apps()
+
+    assert "name: apiAppName" in apps
+    assert "external: false" in apps
+    assert "mountPath: '/app/runtime'" in apps
+    assert "storageType: 'AzureFile'" in apps
+    assert "INITIALIZE_APPLICATION_DATA" in apps
+
+
+def test_dashboard_is_ip_restricted_without_model_secret() -> None:
+    apps = load_apps()
+    dashboard = apps.split("resource dashboardApp", maxsplit=1)[1]
+
+    assert "external: true" in dashboard
+    assert "ipAddressRange: allowedDashboardIpCidr" in dashboard
+    assert "name: 'operator-ip'" in dashboard
+    assert "AZURE_OPENAI_API_KEY" not in dashboard
+
+
+def test_apps_are_locked_to_single_replica() -> None:
+    apps = load_apps()
+
+    assert apps.count("minReplicas: 1") == 2
+    assert apps.count("maxReplicas: 1") == 2
+
+
+def test_apps_declare_explicit_health_probes() -> None:
+    apps = load_apps()
+
+    assert apps.count("type: 'Startup'") == 2
+    assert apps.count("type: 'Liveness'") == 2
+    assert apps.count("type: 'Readiness'") == 2
+    assert "'/_stcore/health'" in apps

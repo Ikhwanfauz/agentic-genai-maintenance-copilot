@@ -44,7 +44,9 @@ jobs:
         run: python -m ruff check .
 
       - name: Validate Azure infrastructure
-        run: az bicep build --file infra/foundation.bicep --stdout > /dev/null
+        run: |
+          az bicep build --file infra/foundation.bicep --stdout > /dev/null
+          az bicep build --file infra/apps.bicep --stdout > /dev/null
 
       - name: Run automated tests
         run: python -m pytest

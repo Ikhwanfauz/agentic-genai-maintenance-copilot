@@ -20,10 +20,13 @@ def load_container_job_text() -> str:
 
 def test_quality_job_compiles_azure_infrastructure() -> None:
     workflow = load_workflow_text()
-    bicep_command = "az bicep build --file infra/foundation.bicep --stdout > /dev/null"
+    foundation_bicep_command = "az bicep build --file infra/foundation.bicep --stdout > /dev/null"
+    apps_bicep_command = "az bicep build --file infra/apps.bicep --stdout > /dev/null"
 
-    assert bicep_command in workflow
-    assert workflow.index(bicep_command) < workflow.index("python -m pytest")
+    assert foundation_bicep_command in workflow
+    assert apps_bicep_command in workflow
+    assert workflow.index(foundation_bicep_command) < workflow.index("python -m pytest")
+    assert workflow.index(apps_bicep_command) < workflow.index("python -m pytest")
 
 
 def test_container_job_waits_for_quality_gate() -> None:
