@@ -43,6 +43,9 @@ jobs:
       - name: Run lint checks
         run: python -m ruff check .
 
+      - name: Validate Azure infrastructure
+        run: az bicep build --file infra/foundation.bicep --stdout > /dev/null
+
       - name: Run automated tests
         run: python -m pytest
 

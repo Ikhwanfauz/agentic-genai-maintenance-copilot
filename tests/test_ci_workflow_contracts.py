@@ -18,6 +18,14 @@ def load_container_job_text() -> str:
     return workflow.split(marker, maxsplit=1)[1]
 
 
+def test_quality_job_compiles_azure_infrastructure() -> None:
+    workflow = load_workflow_text()
+    bicep_command = "az bicep build --file infra/foundation.bicep --stdout > /dev/null"
+
+    assert bicep_command in workflow
+    assert workflow.index(bicep_command) < workflow.index("python -m pytest")
+
+
 def test_container_job_waits_for_quality_gate() -> None:
     container_job = load_container_job_text()
 
