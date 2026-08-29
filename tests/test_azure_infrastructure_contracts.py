@@ -34,7 +34,7 @@ def test_foundation_uses_private_basic_registry() -> None:
     assert "dataEndpointEnabled: false" in foundation
 
 
-def test_foundation_declares_persistent_runtime_storage() -> None:
+def test_foundation_declares_persistent_cache_storage() -> None:
     foundation = load_foundation()
 
     assert "minimumTlsVersion: 'TLS1_2'" in foundation
@@ -98,14 +98,21 @@ def test_apps_pull_private_image_with_managed_identity() -> None:
     assert "/maintenance-copilot:${imageTag}" in apps
 
 
-def test_api_is_internal_and_uses_persistent_storage() -> None:
+def test_api_isolates_locking_stores_from_azure_files() -> None:
     apps = load_apps()
 
     assert "name: apiAppName" in apps
     assert "external: false" in apps
+    assert "value: 'sqlite:////tmp/maintenance-copilot/maintenance_copilot.db'" in apps
+    assert "value: '/tmp/maintenance-copilot/langgraph_checkpoints.sqlite'" in apps
+    assert "value: '/tmp/maintenance-copilot/chroma'" in apps
+    assert "value: '/app/runtime/huggingface'" in apps
     assert "mountPath: '/app/runtime'" in apps
     assert "storageType: 'AzureFile'" in apps
     assert "INITIALIZE_APPLICATION_DATA" in apps
+    assert "sqlite:////app/runtime" not in apps
+    assert "/app/runtime/langgraph_checkpoints.sqlite" not in apps
+    assert "value: '/app/runtime/chroma'" not in apps
 
 
 def test_dashboard_is_ip_restricted_without_model_secret() -> None:

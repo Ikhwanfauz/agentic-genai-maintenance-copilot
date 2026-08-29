@@ -190,13 +190,16 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'INITIALIZE_APPLICATION_DATA'
               value: 'true'
             }
+            // SQLite-backed application, checkpoint, and Chroma state use
+            // replica-local storage because Azure Files SMB does not provide
+            // the file-locking semantics required by these components.
             {
               name: 'DATABASE_URL'
-              value: 'sqlite:////app/runtime/maintenance_copilot.db'
+              value: 'sqlite:////tmp/maintenance-copilot/maintenance_copilot.db'
             }
             {
               name: 'LANGGRAPH_CHECKPOINT_PATH'
-              value: '/app/runtime/langgraph_checkpoints.sqlite'
+              value: '/tmp/maintenance-copilot/langgraph_checkpoints.sqlite'
             }
             {
               name: 'ENGINEERING_DOCS_PATH'
@@ -204,7 +207,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_STORE_PATH'
-              value: '/app/runtime/chroma'
+              value: '/tmp/maintenance-copilot/chroma'
             }
             {
               name: 'HF_HOME'
