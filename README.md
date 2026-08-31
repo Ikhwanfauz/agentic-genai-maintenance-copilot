@@ -69,7 +69,7 @@ health smoke test in GitHub Actions.
 ### Architecture
 
 ```mermaid
-flowchart LR
+flowchart TD
     U[Maintenance Technician] --> UI[Streamlit Dashboard]
     UI --> API[FastAPI REST API]
     API --> AGENT[LangGraph Agent]
