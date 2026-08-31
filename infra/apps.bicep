@@ -195,11 +195,11 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             // the file-locking semantics required by these components.
             {
               name: 'DATABASE_URL'
-              value: 'sqlite:////tmp/maintenance-copilot/maintenance_copilot.db'
+              value: 'sqlite:////tmp/maintenance_copilot.db'
             }
             {
               name: 'LANGGRAPH_CHECKPOINT_PATH'
-              value: '/tmp/maintenance-copilot/langgraph_checkpoints.sqlite'
+              value: '/tmp/langgraph_checkpoints.sqlite'
             }
             {
               name: 'ENGINEERING_DOCS_PATH'
@@ -207,7 +207,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_STORE_PATH'
-              value: '/tmp/maintenance-copilot/chroma'
+              value: '/tmp/chroma'
             }
             {
               name: 'HF_HOME'

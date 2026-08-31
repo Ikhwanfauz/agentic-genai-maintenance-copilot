@@ -103,9 +103,9 @@ def test_api_isolates_locking_stores_from_azure_files() -> None:
 
     assert "name: apiAppName" in apps
     assert "external: false" in apps
-    assert "value: 'sqlite:////tmp/maintenance-copilot/maintenance_copilot.db'" in apps
-    assert "value: '/tmp/maintenance-copilot/langgraph_checkpoints.sqlite'" in apps
-    assert "value: '/tmp/maintenance-copilot/chroma'" in apps
+    assert "value: 'sqlite:////tmp/maintenance_copilot.db'" in apps
+    assert "value: '/tmp/langgraph_checkpoints.sqlite'" in apps
+    assert "value: '/tmp/chroma'" in apps
     assert "value: '/app/runtime/huggingface'" in apps
     assert "mountPath: '/app/runtime'" in apps
     assert "storageType: 'AzureFile'" in apps
