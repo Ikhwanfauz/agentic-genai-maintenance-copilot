@@ -1,12 +1,111 @@
 # Agentic GenAI Maintenance Copilot
 
-A compact, production-oriented Agentic GenAI maintenance copilot for a simulated rotating-equipment environment.
+**Azure-deployed Agentic GenAI system for grounded rotating-equipment maintenance
+investigation, evidence retrieval, diagnosis, and human-approved work-order actions.**
 
-The system is designed to help maintenance technicians investigate equipment issues, gather evidence, develop grounded diagnoses, recommend actions, and manage human-approved application actions.
+This project simulates an industrial maintenance copilot that investigates equipment
+issues using multiple evidence sources instead of relying on an LLM alone. The agent
+can query asset data, analyze sensor trends, retrieve maintenance history and
+engineering documents, produce a citation-backed diagnosis, and propose a controlled
+work order when the evidence justifies one.
+
+State-changing application actions are protected by a human-in-the-loop approval
+workflow. The system can pause a LangGraph investigation, wait for an operator
+decision, validate the approval, resume from the saved checkpoint, and complete the
+workflow without claiming that physical maintenance was performed.
+
+### Portfolio Snapshot
+
+| Area | Implementation / Validation |
+|---|---|
+| Agentic AI | LangGraph model-tool-model workflow with bounded iterations |
+| GenAI | Azure OpenAI `gpt-5.4-mini` with structured outputs |
+| RAG | Sentence Transformers embeddings + Chroma engineering-document retrieval |
+| Data | SQLAlchemy, SQLite, Alembic, deterministic industrial dataset |
+| Human-in-the-Loop | Work-order proposal, approval/rejection, pause and resume |
+| API & UI | FastAPI REST API + Streamlit operator dashboard |
+| Evaluation | 15-scenario deterministic evaluation suite |
+| Quality | 529 automated tests + Ruff + GitHub Actions CI |
+| Deployment | Docker, Azure Container Registry, Azure Container Apps, Bicep |
+| Safety | Read-only investigation tools and no direct machinery or PLC control |
+
+### Hosted Validation
+
+A real Azure-hosted P-101 investigation successfully completed the full workflow:
+
+`Investigate → Gather Evidence → Diagnose → Recommend → Human Approval → Resume → Completed`
+
+The hosted run generated a grounded diagnosis, created a controlled inspection
+work-order proposal, paused for a human decision, accepted an operator approval,
+resumed the LangGraph workflow, and reached `completed`.
+
+> **Safety boundary:** approval is application-level only. The system does not
+> execute physical maintenance, control machinery, modify PLC parameters, or bypass
+> equipment interlocks.
+
+### Demo Evidence
+
+#### Hosted Human-in-the-Loop Approval
+
+The deployed Streamlit dashboard pauses a grounded investigation when a controlled
+work-order action requires an operator decision.
+
+![Hosted human approval](docs/assets/hosted-hitl-approval.png)
+
+#### Approval Resume and Completion
+
+After operator approval, the persisted LangGraph workflow resumes and reaches a
+terminal `completed` state while preserving the application-level safety boundary.
+
+![Completed hosted investigation](docs/assets/hosted-investigation-completed.png)
+
+#### Continuous Integration
+
+The final `main` branch passes the Python quality gate and Docker build / container
+health smoke test in GitHub Actions.
+
+![Final GitHub Actions CI](docs/assets/final-ci-green.png)
+
+### Architecture
+
+```mermaid
+flowchart LR
+    U[Maintenance Technician] --> UI[Streamlit Dashboard]
+    UI --> API[FastAPI REST API]
+    API --> AGENT[LangGraph Agent]
+
+    AGENT --> LLM[Azure OpenAI<br/>gpt-5.4-mini]
+    AGENT --> TOOLS[Application Tool Layer]
+
+    TOOLS --> SQL[(SQLite<br/>Assets, Sensors,<br/>Maintenance History)]
+    TOOLS --> RAG[Engineering Document RAG]
+    RAG --> EMB[Sentence Transformers]
+    EMB --> CHROMA[(Chroma Vector Store)]
+
+    TOOLS --> EVIDENCE[Typed Evidence Ledger]
+    EVIDENCE --> DIAG[Grounded Diagnosis<br/>with Citations]
+
+    DIAG --> ACTION{Work Order<br/>Required?}
+    ACTION -->|No| DONE[Complete / Abstain]
+    ACTION -->|Yes| PROPOSAL[Work-Order Proposal]
+
+    PROPOSAL --> HITL[Human Approval Interrupt]
+    HITL --> CHECKPOINT[(LangGraph<br/>SQLite Checkpoint)]
+    HITL --> HUMAN[Operator Decision]
+
+    HUMAN -->|Approve / Reject| RESUME[Resume Workflow]
+    CHECKPOINT --> RESUME
+    RESUME --> DONE
+
+```
+
+The agent does not receive unrestricted access to application state or machinery.
+Read-only tool adapters gather evidence, while application-owned policies validate
+grounding, work-order creation, approval identity, and workflow transitions.
 
 ## Project Status
 
-Current version: **V8.4 - Hosted Azure Application Validation Complete**
+Current version: **V8 - Docker and Azure Complete**
 
 Implemented:
 
