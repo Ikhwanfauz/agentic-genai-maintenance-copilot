@@ -63,8 +63,20 @@ class RecommendedAction(BaseModel):
         max_length=1000,
     )
     priority: WorkOrderPriority
-    state_changing: bool
-    requires_human_approval: bool
+    state_changing: bool = Field(
+        description=(
+            "True for controlled physical inspection, alignment, lubrication, "
+            "repair, replacement, or other maintenance work intended for a "
+            "work order. False for monitoring, reviewing existing data, or "
+            "gathering non-intrusive evidence without a work order."
+        ),
+    )
+    requires_human_approval: bool = Field(
+        description=(
+            "True for every state-changing action and any maintenance action "
+            "that requires human authorization."
+        ),
+    )
 
     @model_validator(mode="after")
     def enforce_approval_boundary(self) -> Self:

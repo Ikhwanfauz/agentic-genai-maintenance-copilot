@@ -133,3 +133,17 @@ def test_state_changing_action_requires_human_approval() -> None:
             state_changing=True,
             requires_human_approval=False,
         )
+
+
+def test_recommended_action_schema_defines_state_change_semantics() -> None:
+    schema = RecommendedAction.model_json_schema()
+    properties = schema["properties"]
+
+    state_change_description = properties["state_changing"]["description"]
+    approval_description = properties["requires_human_approval"]["description"]
+
+    assert "controlled physical inspection" in state_change_description
+    assert "work order" in state_change_description
+    assert "monitoring" in state_change_description
+    assert "state-changing action" in approval_description
+    assert "human authorization" in approval_description
