@@ -6,7 +6,7 @@ The system is designed to help maintenance technicians investigate equipment iss
 
 ## Project Status
 
-Current version: **V8 - Docker and Azure In Progress (V8.3 complete)**
+Current version: **V8.4 - Hosted Azure Application Validation Complete**
 
 Implemented:
 
@@ -81,7 +81,7 @@ Implemented:
 - Persistent runtime storage with container health and secret-isolation boundaries
 - Automated tests with pytest
 - Code formatting and linting with Ruff
-- 513 automated tests at the verified V8.3 checkpoint
+- 529 automated tests at the verified V8.4 checkpoint
 
 Manual hosted validation has confirmed direct Azure inference, real model tool
 selection, SQLite-backed tool execution, bounded LangGraph routing, structured
@@ -89,17 +89,16 @@ diagnosis generation, citation capture, evidence-based abstention, REST delivery
 Streamlit rendering, persisted observability, and checkpoint recovery after an
 application restart.
 
-The verified V6 hosted dashboard journey completed one grounded P-101
+An earlier V6 hosted dashboard journey completed one grounded P-101
 investigation using `gpt-5.4-mini`. It recorded 6 model calls, 10,135 provider-
 reported tokens, 13 completed graph steps, four successful read-only tool calls,
 and 11 diagnosis citations in 28.147 seconds. Estimated cost remains `0.0`
 because the application does not fabricate pricing data.
 
-The hosted run completed without a work-order proposal because its recommended
-action was not marked state-changing. The deterministic proposal policy correctly
-refused to manufacture an approval request. Automated tests separately validate
-the complete proposed, approved, rejected, stale-decision, and resume journeys
-using fake models and local application integrations.
+That earlier hosted run completed without a work-order proposal because its
+recommended action was not marked state-changing. V8.4 corrected the inspection
+classification behavior and revalidated the complete hosted human-in-the-loop
+journey through proposal, approval, workflow resume, and completion.
 
 V6 application delivery and persisted observability are complete. V7 evaluation
 and reliability are complete. V7.1 establishes the typed evaluation
@@ -109,8 +108,8 @@ through the real LangGraph workflow using deterministic scripted models, isolate
 SQLite and Chroma environments, controlled failure injection, and machine-readable
 JSON regression reports. V7.4 adds a GitHub Actions quality gate that verifies
 dependency compatibility, formatting, linting, and all automated tests on Ubuntu.
-V7 is complete, while Docker and Azure application deployment remain assigned to
-V8.
+V7 is complete. V8 completes containerization, container quality gates, Azure
+infrastructure, Azure application deployment, and hosted end-to-end validation.
 
 ## Safety Boundary
 
@@ -608,6 +607,116 @@ The project now declares `app` as a Ruff first-party package, producing consiste
 import ordering on Windows and Linux. The corrected workflow completed
 successfully on GitHub Actions with all 487 automated tests passing.
 
+### V8.1 API Container Foundation
+
+V8.1 introduces a production-oriented Docker image for the Maintenance Copilot
+API.
+
+The image uses Python 3.11 slim and installs CPU-only PyTorch dependencies to
+avoid unnecessary GPU runtime components. The application runs as the non-root
+`maintenance` user and exposes the FastAPI service on port 8000.
+
+Runtime data is separated from the application source under `/app/runtime`, and
+the container includes a health check against the existing `/health` endpoint.
+The Docker build context excludes secrets, generated databases, Chroma runtime
+data, test artifacts, and other local development files.
+
+Automated container-contract tests verify the pinned runtime, CPU-only dependency
+policy, non-root execution, persistent runtime paths, health contract, and
+Docker build-context exclusions.
+
+
+### V8.2 Container Startup and Local Orchestration
+
+V8.2 adds an idempotent container startup layer and Docker Compose orchestration
+for the API and Streamlit operator dashboard.
+
+When `INITIALIZE_APPLICATION_DATA=true`, the container startup process applies
+Alembic migrations, seeds the deterministic industrial dataset, and indexes the
+engineering-document corpus before launching the requested application command.
+Repeated startup preserves existing seeded application data.
+
+Docker Compose runs the API and dashboard from the same application image. The
+API receives hosted-model credentials through its environment while the dashboard
+communicates with the API through the internal Compose network without receiving
+Azure credentials.
+
+A named runtime volume preserves SQLite application data, LangGraph checkpoints,
+Chroma data, and model cache across normal local container restarts.
+
+The verified V8.2 local container journey successfully executed a grounded P-101
+investigation through the Streamlit dashboard, API, LangGraph workflow,
+Azure-hosted model, SQLite tools, and engineering-document retrieval layer.
+
+
+### V8.3 Container Continuous Integration Gate
+
+V8.3 extends the GitHub Actions workflow with a Docker container quality gate.
+
+The container job runs only after the Python quality job succeeds. It builds the
+production image on Ubuntu, verifies that the configured runtime user is
+`maintenance`, starts the API container without hosted-model credentials, and
+waits for a successful response from `/health`.
+
+Container logs are collected and the smoke-test container is removed even when
+the job fails.
+
+This gate proves that every accepted commit can build and start the production
+container independently of the developer workstation and without making billable
+hosted-model calls.
+
+
+### V8.4 Azure Application Deployment and Hosted Validation
+
+V8.4 deploys the Maintenance Copilot infrastructure and application to Azure
+using Bicep, Azure Container Registry, and Azure Container Apps.
+
+The temporary Azure foundation provisions the Container Apps environment,
+Azure Container Registry, Log Analytics integration, managed identity for image
+pulls, and runtime-storage resources. Infrastructure templates are validated by
+automated contract tests and by the GitHub Actions quality gate.
+
+The API and Streamlit dashboard are deployed as separate Container Apps using the
+same application image. Azure OpenAI credentials are supplied to the API through
+Container App secrets, while the dashboard communicates with the API without
+receiving hosted-model credentials.
+
+Hosted troubleshooting identified that SQLite, LangGraph checkpoint storage, and
+Chroma require replica-local filesystem semantics that are not provided by the
+Azure Files SMB mount used by the temporary deployment. The hosted API therefore
+uses:
+
+- `/tmp/maintenance_copilot.db`
+- `/tmp/langgraph_checkpoints.sqlite`
+- `/tmp/chroma`
+
+These paths allow the application to run correctly within the active replica but
+are not claimed to survive replica replacement.
+
+The final hosted image `f9293d6` was deployed successfully to Azure Container Apps.
+The resulting API revision became healthy and provisioned.
+
+A real hosted P-101 investigation then validated the complete human-in-the-loop
+workflow:
+
+- grounded evidence was collected through the deployed application;
+- the agent produced a grounded diagnosis;
+- a controlled inspection recommendation was correctly classified as requiring
+  a work-order proposal;
+- the application created a pending work order and approval request;
+- the Streamlit dashboard rendered the human approval controls;
+- a human operator approved the work order;
+- LangGraph resumed from the approval interrupt;
+- the work order transitioned to `approved`;
+- the investigation reached `completed`;
+- refreshing the dashboard retrieved the same persisted application state.
+
+The approval remained strictly application-level. No physical maintenance
+execution, machinery control, PLC modification, or interlock bypass was performed
+or recorded.
+
+The verified V8.4 checkpoint contains 529 automated tests.
+
 ## Engineering Document Corpus
 
 The V2 corpus contains three original synthetic documents:
@@ -946,6 +1055,6 @@ Downgrading removes application tables and their stored data. Use it only agains
 - V5 - Human-in-the-Loop Actions: complete
 - V6 - Application and Observability: complete
 - V7 - Evaluation and Reliability: complete
-- V8 - Docker and Azure: in progress (V8.3 complete)
+- V8 - Docker and Azure: complete
 
-The MVP is complete only after V8 works end-to-end.
+The MVP is complete.
