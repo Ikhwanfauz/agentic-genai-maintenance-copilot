@@ -11,3 +11,5 @@ sentence-transformers==6.0.0
 sqlalchemy==2.0.52
 streamlit==1.62.0
 uvicorn[standard]==0.52.3
+httpx==0.28.1
+mcp==1.30.0
