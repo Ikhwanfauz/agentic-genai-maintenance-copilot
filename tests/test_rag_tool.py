@@ -2,11 +2,13 @@ import math
 from collections.abc import Sequence
 from pathlib import Path
 
-import chromadb
 import pytest
 from pydantic import ValidationError
+from sqlalchemy import create_engine
 
+from app.db.base import Base
 from app.rag.indexer import index_engineering_documents
+from app.rag.vector_store import SQLVectorStore
 from app.schemas.rag import EngineeringDocumentSearchInput
 from app.tools.exceptions import VectorStoreNotReadyError
 from app.tools.rag import search_engineering_docs
@@ -61,17 +63,21 @@ class SemanticFakeEmbeddingProvider:
 
 @pytest.fixture
 def indexed_vector_store():
-    client = chromadb.EphemeralClient()
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    client = SQLVectorStore(engine)
     embedding_provider = SemanticFakeEmbeddingProvider()
 
-    index_engineering_documents(
-        client=client,
-        embedding_provider=embedding_provider,
-        documents_directory=Path("data/engineering_docs"),
-        collection_name="test_engineering_docs",
-    )
-
-    return client, embedding_provider
+    try:
+        index_engineering_documents(
+            client=client,
+            embedding_provider=embedding_provider,
+            documents_directory=Path("data/engineering_docs"),
+            collection_name="test_engineering_docs",
+        )
+        yield client, embedding_provider
+    finally:
+        engine.dispose()
 
 
 def test_search_engineering_docs_returns_grounded_results(
@@ -131,20 +137,26 @@ def test_search_engineering_docs_retrieves_safety_guidance(
 
 
 def test_search_engineering_docs_raises_when_index_is_missing() -> None:
-    client = chromadb.EphemeralClient()
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
 
-    with pytest.raises(
-        VectorStoreNotReadyError,
-        match="is not ready",
-    ):
-        search_engineering_docs(
-            client=client,
-            embedding_provider=SemanticFakeEmbeddingProvider(),
-            collection_name="missing_collection",
-            tool_input=EngineeringDocumentSearchInput(
-                query="pump vibration",
-            ),
-        )
+    try:
+        client = SQLVectorStore(engine)
+
+        with pytest.raises(
+            VectorStoreNotReadyError,
+            match="is not ready",
+        ):
+            search_engineering_docs(
+                client=client,
+                embedding_provider=SemanticFakeEmbeddingProvider(),
+                collection_name="missing_collection",
+                tool_input=EngineeringDocumentSearchInput(
+                    query="pump vibration",
+                ),
+            )
+    finally:
+        engine.dispose()
 
 
 def test_engineering_document_search_input_rejects_invalid_values() -> None:

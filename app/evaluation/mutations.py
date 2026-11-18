@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 
-from chromadb.api import ClientAPI
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -11,6 +10,7 @@ from app.evaluation.fixtures import (
 from app.models.asset import Asset
 from app.models.maintenance import MaintenanceRecord
 from app.models.sensor import SensorReading
+from app.rag.vector_store import SQLVectorStore
 
 
 def _get_asset_id(
@@ -60,23 +60,17 @@ def _apply_database_mutation(
 
 
 def _empty_engineering_documents(
-    vector_client: ClientAPI,
+    vector_client: SQLVectorStore,
     collection_name: str,
 ) -> None:
-    collection = vector_client.get_collection(
-        name=collection_name,
-    )
-    document_ids = collection.get()["ids"]
-
-    if document_ids:
-        collection.delete(ids=document_ids)
+    vector_client.clear(collection_name)
 
 
 def apply_fixture_mutations(
     mutations: Sequence[EvaluationFixtureMutation],
     *,
     database_session: Session,
-    vector_client: ClientAPI,
+        vector_client: SQLVectorStore,
     engineering_docs_collection: str,
 ) -> None:
     """Apply controlled mutations to one isolated evaluation environment."""

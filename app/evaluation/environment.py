@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-import chromadb
-from chromadb.api import ClientAPI
 from langchain_core.tools import BaseTool
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -22,6 +20,7 @@ from app.db.session import create_database_engine
 from app.evaluation.fixtures import ScenarioFixturePlan
 from app.evaluation.mutations import apply_fixture_mutations
 from app.rag.indexer import index_engineering_documents
+from app.rag.vector_store import SQLVectorStore
 
 EVALUATION_REFERENCE_TIME = datetime(
     2026,
@@ -159,7 +158,7 @@ class EvaluationEmbeddingProvider:
 class EvaluationScenarioEnvironment:
     database_engine: Engine
     session_factory: sessionmaker[Session]
-    vector_client: ClientAPI
+    vector_client: SQLVectorStore
     embedding_provider: EvaluationEmbeddingProvider
     engineering_docs_collection: str
     tools: list[BaseTool]
@@ -178,7 +177,6 @@ def open_evaluation_scenario_environment(
         exist_ok=True,
     )
     database_path = working_directory / "evaluation.sqlite"
-    vector_store_path = working_directory / "chroma"
     checkpoint_path = working_directory / "checkpoints.sqlite"
 
     if database_path.exists():
@@ -191,9 +189,7 @@ def open_evaluation_scenario_environment(
         class_=Session,
         expire_on_commit=False,
     )
-    vector_client = chromadb.PersistentClient(
-        path=str(vector_store_path),
-    )
+    vector_client = SQLVectorStore(database_engine)
     embedding_provider = EvaluationEmbeddingProvider()
 
     try:

@@ -1,5 +1,4 @@
-alembic==1.19.1
-chromadb==1.5.9
+alembic==1.19.2
 fastapi==0.141.1
 httpx2==2.11.0
 langchain-openai==1.4.1
@@ -14,3 +13,4 @@ uvicorn[standard]==0.52.3
 httpx==0.28.1
 mcp==1.30.0
 psycopg[binary]==3.3.9
+pgvector==0.5.1

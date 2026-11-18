@@ -25,6 +25,10 @@ param azureOpenAiEndpoint string
 @description('Azure OpenAI API key stored as a Container App secret.')
 param azureOpenAiApiKey string
 
+@secure()
+@description('PostgreSQL SQLAlchemy URL with psycopg, TLS, and pgvector available.')
+param databaseUrl string
+
 @description('Azure OpenAI deployment name.')
 param azureOpenAiDeployment string = 'gpt-5.4-mini'
 
@@ -174,6 +178,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'azure-openai-api-key'
           value: azureOpenAiApiKey
         }
+        {
+          name: 'database-url'
+          value: databaseUrl
+        }
       ]
     }
     template: {
@@ -190,13 +198,13 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'INITIALIZE_APPLICATION_DATA'
               value: 'true'
             }
-            // SQLite-backed application, checkpoint, and Chroma state use
-            // replica-local storage because Azure Files SMB does not provide
-            // the file-locking semantics required by these components.
+            // Application data and document vectors use external PostgreSQL.
             {
               name: 'DATABASE_URL'
-              value: 'sqlite:////tmp/maintenance_copilot.db'
+              secretRef: 'database-url'
             }
+            // SQLite checkpoints remain replica-local and are not durable
+            // across replica replacement.
             {
               name: 'LANGGRAPH_CHECKPOINT_PATH'
               value: '/tmp/langgraph_checkpoints.sqlite'
@@ -205,10 +213,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'ENGINEERING_DOCS_PATH'
               value: '/app/data/engineering_docs'
             }
-            {
-              name: 'VECTOR_STORE_PATH'
-              value: '/tmp/chroma'
-            }
+
             {
               name: 'HF_HOME'
               value: '/app/runtime/huggingface'

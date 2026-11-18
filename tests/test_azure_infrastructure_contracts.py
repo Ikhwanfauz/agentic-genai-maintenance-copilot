@@ -98,21 +98,30 @@ def test_apps_pull_private_image_with_managed_identity() -> None:
     assert "/maintenance-copilot:${imageTag}" in apps
 
 
-def test_api_isolates_locking_stores_from_azure_files() -> None:
+def test_api_uses_postgres_secret_and_replica_local_checkpoints() -> None:
     apps = load_apps()
 
     assert "name: apiAppName" in apps
     assert "external: false" in apps
-    assert "value: 'sqlite:////tmp/maintenance_copilot.db'" in apps
+    assert (
+        "@secure()\n"
+        "@description('PostgreSQL SQLAlchemy URL with psycopg, TLS, "
+        "and pgvector available.')\n"
+        "param databaseUrl string"
+    ) in apps
+    assert "name: 'database-url'" in apps
+    assert "value: databaseUrl" in apps
+    assert "name: 'DATABASE_URL'" in apps
+    assert "secretRef: 'database-url'" in apps
     assert "value: '/tmp/langgraph_checkpoints.sqlite'" in apps
-    assert "value: '/tmp/chroma'" in apps
     assert "value: '/app/runtime/huggingface'" in apps
     assert "mountPath: '/app/runtime'" in apps
     assert "storageType: 'AzureFile'" in apps
     assert "INITIALIZE_APPLICATION_DATA" in apps
+    assert "sqlite:////tmp/maintenance_copilot.db" not in apps
     assert "sqlite:////app/runtime" not in apps
     assert "/app/runtime/langgraph_checkpoints.sqlite" not in apps
-    assert "value: '/app/runtime/chroma'" not in apps
+    assert "VECTOR_STORE_PATH" not in apps
 
 
 def test_dashboard_is_ip_restricted_without_model_secret() -> None:

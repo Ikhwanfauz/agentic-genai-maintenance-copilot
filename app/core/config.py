@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     langgraph_checkpoint_path: str = "./data/langgraph_checkpoints.sqlite"
 
     engineering_docs_path: str = "./data/engineering_docs"
-    vector_store_path: str = "./data/chroma"
+
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     engineering_docs_collection: str = "engineering_docs"
 

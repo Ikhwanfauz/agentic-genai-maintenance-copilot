@@ -1,6 +1,23 @@
 name: maintenance-copilot
 
 services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17-trixie
+    environment:
+      POSTGRES_DB: maintenance_copilot
+      POSTGRES_USER: maintenance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - maintenance-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U maintenance -d maintenance_copilot" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -13,15 +30,17 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: "8000"
       INITIALIZE_APPLICATION_DATA: "true"
-      DATABASE_URL: sqlite:////app/runtime/maintenance_copilot.db
+      DATABASE_URL: postgresql+psycopg://maintenance:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/maintenance_copilot
       LANGGRAPH_CHECKPOINT_PATH: /app/runtime/langgraph_checkpoints.sqlite
       ENGINEERING_DOCS_PATH: /app/data/engineering_docs
-      VECTOR_STORE_PATH: /app/runtime/chroma
       HF_HOME: /app/runtime/huggingface
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - maintenance-runtime:/app/runtime
+    depends_on:
+      postgres:
+        condition: service_healthy
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
@@ -84,3 +103,4 @@ services:
 
 volumes:
   maintenance-runtime:
+  maintenance-postgres-data:

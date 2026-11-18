@@ -35,7 +35,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Optional fresh working directory for scenario "
-            "databases, Chroma indexes, and checkpoints."
+            "databases, SQL vector collections, and checkpoints."
         ),
     )
     parser.add_argument(

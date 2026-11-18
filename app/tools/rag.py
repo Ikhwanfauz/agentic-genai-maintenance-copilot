@@ -1,5 +1,6 @@
-from chromadb.api import ClientAPI
-from chromadb.errors import NotFoundError
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from app.rag.embeddings import EmbeddingProvider
 from app.schemas.rag import (
@@ -8,6 +9,9 @@ from app.schemas.rag import (
     EngineeringDocumentSearchOutput,
 )
 from app.tools.exceptions import VectorStoreNotReadyError
+
+if TYPE_CHECKING:
+    from app.rag.vector_store import SQLVectorStore
 
 
 def calculate_relevance_score(distance: float) -> float:
@@ -27,17 +31,12 @@ def applies_to_asset(
 
 
 def search_engineering_docs(
-    client: ClientAPI,
+    client: SQLVectorStore,
     embedding_provider: EmbeddingProvider,
     collection_name: str,
     tool_input: EngineeringDocumentSearchInput,
 ) -> EngineeringDocumentSearchOutput:
-    try:
-        collection = client.get_collection(name=collection_name)
-    except NotFoundError as error:
-        raise VectorStoreNotReadyError(collection_name) from error
-
-    collection_count = collection.count()
+    collection_count = client.count(collection_name)
 
     if collection_count == 0:
         raise VectorStoreNotReadyError(collection_name)
@@ -48,37 +47,20 @@ def search_engineering_docs(
     )
 
     query_embedding = embedding_provider.embed_query(tool_input.query)
-
-    query_result = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=candidate_count,
-        include=[
-            "documents",
-            "metadatas",
-            "distances",
-        ],
+    matches = client.search(
+        collection_name,
+        query_embedding,
+        candidate_count,
     )
-
-    ids = query_result["ids"][0]
-    documents = query_result["documents"][0] if query_result["documents"] is not None else []
-    metadatas = query_result["metadatas"][0] if query_result["metadatas"] is not None else []
-    distances = query_result["distances"][0] if query_result["distances"] is not None else []
 
     results: list[EngineeringDocumentResult] = []
 
-    for (
-        chunk_id,
-        document,
-        metadata,
-        distance,
-    ) in zip(
-        ids,
-        documents,
-        metadatas,
-        distances,
-        strict=True,
-    ):
-        metadata = metadata or {}
+    for match in matches:
+        chunk_id = match.chunk_id
+        document = match.content
+        metadata = match.metadata or {}
+        distance = match.distance
+
         applicable_assets = str(
             metadata.get(
                 "applicable_assets",
@@ -108,13 +90,10 @@ def search_engineering_docs(
                 section=section,
                 source_path=source_path,
                 applicable_assets=applicable_assets,
-                content=document or "",
+                content=document,
                 distance=round(float(distance), 6),
-                relevance_score=round(
-                    relevance_score,
-                    6,
-                ),
-                citation=(f"{document_id} | {section} | {source_path}"),
+                relevance_score=round(relevance_score, 6),
+                citation=f"{document_id} | {section} | {source_path}",
             )
         )
 

@@ -2,11 +2,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from chromadb.api import ClientAPI
 from langchain_core.tools import BaseTool, StructuredTool
 from sqlalchemy.orm import Session
 
 from app.rag.embeddings import EmbeddingProvider
+from app.rag.vector_store import SQLVectorStore
 from app.schemas.asset import AssetDetailsInput
 from app.schemas.maintenance import MaintenanceHistoryInput
 from app.schemas.rag import EngineeringDocumentSearchInput
@@ -22,7 +22,7 @@ DatabaseSessionFactory = Callable[[], Session]
 @dataclass(frozen=True)
 class InvestigationToolDependencies:
     session_factory: DatabaseSessionFactory
-    vector_client: ClientAPI
+    vector_client: SQLVectorStore
     embedding_provider: EmbeddingProvider
     engineering_docs_collection: str
 
