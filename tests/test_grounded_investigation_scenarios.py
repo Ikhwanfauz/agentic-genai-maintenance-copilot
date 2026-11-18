@@ -1,14 +1,12 @@
 import json
 import math
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import Mock
 
-import chromadb
 import pytest
-from chromadb.api import ClientAPI
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from sqlalchemy import create_engine, func, select
@@ -30,6 +28,7 @@ from app.models.maintenance import MaintenanceRecord
 from app.models.sensor import SensorReading
 from app.models.work_order import WorkOrder
 from app.rag.indexer import index_engineering_documents
+from app.rag.vector_store import SQLVectorStore
 from app.schemas.diagnosis import (
     DiagnosisConfidence,
     EvidenceReference,
@@ -55,13 +54,9 @@ class ScenarioEmbeddingProvider:
             float(sum(normalized_text.count(term) for term in group) + 0.1) for group in groups
         ]
         magnitude = math.sqrt(sum(value**2 for value in vector))
-
         return [value / magnitude for value in vector]
 
-    def embed_documents(
-        self,
-        texts: Sequence[str],
-    ) -> list[list[float]]:
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         return [self.embed_text(text) for text in texts]
 
     def embed_query(self, text: str) -> list[float]:
@@ -71,7 +66,7 @@ class ScenarioEmbeddingProvider:
 @dataclass(frozen=True)
 class ScenarioEnvironment:
     engine: Engine
-    vector_client: ClientAPI
+    vector_client: SQLVectorStore
     tools: list[BaseTool]
     baseline_sql_counts: dict[str, int]
     baseline_vector_count: int
@@ -85,7 +80,6 @@ def count_sql_rows(engine: Engine) -> dict[str, int]:
         "work_orders": WorkOrder,
         "approvals": Approval,
     }
-
     with Session(engine) as database_session:
         return {
             name: int(database_session.scalar(select(func.count()).select_from(model)) or 0)
@@ -96,48 +90,49 @@ def count_sql_rows(engine: Engine) -> dict[str, int]:
 @pytest.fixture(scope="module")
 def scenario_environment(
     tmp_path_factory: pytest.TempPathFactory,
-) -> ScenarioEnvironment:
+) -> Iterator[ScenarioEnvironment]:
     database_path = tmp_path_factory.mktemp("v44") / "scenario.db"
     engine = create_engine(f"sqlite+pysqlite:///{database_path.as_posix()}")
-    Base.metadata.create_all(engine)
 
-    with Session(engine, expire_on_commit=False) as database_session:
-        assets = seed_reference_data(database_session, REFERENCE_TIME)
-        seed_sensor_data(database_session, assets, REFERENCE_TIME)
-        database_session.commit()
+    try:
+        Base.metadata.create_all(engine)
 
-    vector_client = chromadb.EphemeralClient()
-    embedding_provider = ScenarioEmbeddingProvider()
-    index_engineering_documents(
-        client=vector_client,
-        embedding_provider=embedding_provider,
-        documents_directory=Path("data/engineering_docs"),
-        collection_name=COLLECTION_NAME,
-    )
-    tools = build_investigation_tools(
-        InvestigationToolDependencies(
-            session_factory=lambda: Session(engine, expire_on_commit=False),
-            vector_client=vector_client,
+        with Session(engine, expire_on_commit=False) as database_session:
+            assets = seed_reference_data(database_session, REFERENCE_TIME)
+            seed_sensor_data(database_session, assets, REFERENCE_TIME)
+            database_session.commit()
+
+        vector_client = SQLVectorStore(engine)
+        embedding_provider = ScenarioEmbeddingProvider()
+        index_engineering_documents(
+            client=vector_client,
             embedding_provider=embedding_provider,
-            engineering_docs_collection=COLLECTION_NAME,
+            documents_directory=Path("data/engineering_docs"),
+            collection_name=COLLECTION_NAME,
         )
-    )
+        tools = build_investigation_tools(
+            InvestigationToolDependencies(
+                session_factory=lambda: Session(engine, expire_on_commit=False),
+                vector_client=vector_client,
+                embedding_provider=embedding_provider,
+                engineering_docs_collection=COLLECTION_NAME,
+            )
+        )
 
-    return ScenarioEnvironment(
-        engine=engine,
-        vector_client=vector_client,
-        tools=tools,
-        baseline_sql_counts=count_sql_rows(engine),
-        baseline_vector_count=vector_client.get_collection(name=COLLECTION_NAME).count(),
-    )
+        yield ScenarioEnvironment(
+            engine=engine,
+            vector_client=vector_client,
+            tools=tools,
+            baseline_sql_counts=count_sql_rows(engine),
+            baseline_vector_count=vector_client.count(COLLECTION_NAME),
+        )
+    finally:
+        engine.dispose()
 
 
 def assert_environment_unchanged(environment: ScenarioEnvironment) -> None:
     assert count_sql_rows(environment.engine) == environment.baseline_sql_counts
-    assert (
-        environment.vector_client.get_collection(name=COLLECTION_NAME).count()
-        == environment.baseline_vector_count
-    )
+    assert environment.vector_client.count(COLLECTION_NAME) == environment.baseline_vector_count
 
 
 def tool_call(
@@ -165,7 +160,6 @@ def grounding_metadata(messages: list[object]) -> dict[str, object]:
         if isinstance(message, SystemMessage)
         and message.content.startswith("Application-owned grounding metadata")
     )
-
     return json.loads(grounding_message.content.split("\n", maxsplit=1)[1])
 
 
@@ -237,10 +231,7 @@ def test_p101_complete_investigation_returns_grounded_diagnosis(
         ),
         tool_call(
             "analyze_sensor_data",
-            {
-                "asset_code": "P-101",
-                "sensor_types": ["vibration", "flow_rate"],
-            },
+            {"asset_code": "P-101", "sensor_types": ["vibration", "flow_rate"]},
             3,
         ),
         tool_call(

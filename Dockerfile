@@ -6,10 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     APP_ENV=production \
     API_HOST=0.0.0.0 \
     API_PORT=8000 \
-    DATABASE_URL=sqlite:////app/runtime/maintenance_copilot.db \
     LANGGRAPH_CHECKPOINT_PATH=/app/runtime/langgraph_checkpoints.sqlite \
     ENGINEERING_DOCS_PATH=/app/data/engineering_docs \
-    VECTOR_STORE_PATH=/app/runtime/chroma \
     HF_HOME=/app/runtime/huggingface
 
 WORKDIR /app

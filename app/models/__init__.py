@@ -2,6 +2,7 @@ from app.models.agent_log import AgentRun, AgentStep, ToolCall
 from app.models.approval import Approval
 from app.models.asset import Asset
 from app.models.maintenance import MaintenanceRecord
+from app.models.rag import RagChunk, RagCollection
 from app.models.sensor import SensorReading
 from app.models.work_order import WorkOrder
 
@@ -14,4 +15,6 @@ __all__ = [
     "SensorReading",
     "ToolCall",
     "WorkOrder",
+    "RagChunk",
+    "RagCollection",
 ]

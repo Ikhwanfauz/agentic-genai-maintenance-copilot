@@ -48,4 +48,4 @@ def test_compose_applies_container_security_boundary() -> None:
 
     assert content.count("no-new-privileges:true") == 2
     assert content.count("cap_drop:") == 2
-    assert content.count("restart: unless-stopped") == 2
+    assert content.count("restart: unless-stopped") == 3

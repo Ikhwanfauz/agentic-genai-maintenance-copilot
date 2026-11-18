@@ -31,14 +31,20 @@ def test_dockerfile_uses_persistent_runtime_paths() -> None:
     content = DOCKERFILE_PATH.read_text(encoding="utf-8")
 
     required_runtime_settings = {
-        ("DATABASE_URL=sqlite:////app/runtime/maintenance_copilot.db"),
-        ("LANGGRAPH_CHECKPOINT_PATH=/app/runtime/langgraph_checkpoints.sqlite"),
-        "VECTOR_STORE_PATH=/app/runtime/chroma",
+        "LANGGRAPH_CHECKPOINT_PATH=/app/runtime/langgraph_checkpoints.sqlite",
+        "ENGINEERING_DOCS_PATH=/app/data/engineering_docs",
         "HF_HOME=/app/runtime/huggingface",
     }
 
     for setting in required_runtime_settings:
         assert setting in content
+
+
+def test_dockerfile_leaves_database_connection_to_runtime() -> None:
+    content = DOCKERFILE_PATH.read_text(encoding="utf-8")
+
+    assert "DATABASE_URL=" not in content
+    assert "VECTOR_STORE_PATH=" not in content
 
 
 def test_dockerignore_excludes_secrets_and_generated_data() -> None:

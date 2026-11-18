@@ -15,6 +15,7 @@ from app.agent.runtime import (
     AgentRuntime,
     open_agent_runtime,
 )
+from app.api.maintenance_lookup import router as maintenance_lookup_router
 from app.api.routes.agent import router as agent_router
 from app.api.routes.health import router as health_router
 from app.core.config import get_settings
@@ -78,6 +79,7 @@ def create_app(
 
     application.include_router(health_router)
     application.include_router(agent_router)
+    application.include_router(maintenance_lookup_router)
 
     return application
 

@@ -1,12 +1,14 @@
 from collections.abc import Sequence
 from pathlib import Path
 
-import chromadb
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
-from app.rag.documents import (
-    load_engineering_document_chunks,
-)
+from app.db.base import Base
+from app.models.rag import RagChunk
+from app.rag.documents import load_engineering_document_chunks
 from app.rag.indexer import index_engineering_documents
+from app.rag.vector_store import SQLVectorStore
 
 
 class FakeEmbeddingProvider:
@@ -39,39 +41,46 @@ def test_load_engineering_documents_creates_stable_chunks() -> None:
 
     assert elevated_vibration.document_id == "ENG-PUMP-001"
     assert elevated_vibration.section == "Elevated Vibration"
-    assert elevated_vibration.source_path == ("pump_troubleshooting_guide.md")
-    assert "coupling misalignment" in (elevated_vibration.content)
+    assert elevated_vibration.source_path == "pump_troubleshooting_guide.md"
+    assert "coupling misalignment" in elevated_vibration.content
 
 
 def test_index_engineering_documents_is_idempotent() -> None:
-    client = chromadb.EphemeralClient()
-    embedding_provider = FakeEmbeddingProvider()
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
 
-    first_summary = index_engineering_documents(
-        client=client,
-        embedding_provider=embedding_provider,
-        documents_directory=Path("data/engineering_docs"),
-        collection_name="test_engineering_docs",
-    )
-    second_summary = index_engineering_documents(
-        client=client,
-        embedding_provider=embedding_provider,
-        documents_directory=Path("data/engineering_docs"),
-        collection_name="test_engineering_docs",
-    )
+    try:
+        client = SQLVectorStore(engine)
+        embedding_provider = FakeEmbeddingProvider()
 
-    collection = client.get_collection(name="test_engineering_docs")
+        first_summary = index_engineering_documents(
+            client=client,
+            embedding_provider=embedding_provider,
+            documents_directory=Path("data/engineering_docs"),
+            collection_name="test_engineering_docs",
+        )
+        second_summary = index_engineering_documents(
+            client=client,
+            embedding_provider=embedding_provider,
+            documents_directory=Path("data/engineering_docs"),
+            collection_name="test_engineering_docs",
+        )
 
-    assert first_summary.source_document_count == 3
-    assert first_summary.chunk_count == 9
-    assert second_summary == first_summary
-    assert collection.count() == 9
+        assert first_summary.source_document_count == 3
+        assert first_summary.chunk_count == 9
+        assert second_summary == first_summary
+        assert client.count("test_engineering_docs") == 9
 
-    stored_data = collection.get(
-        ids=["eng-pump-001-elevated-vibration"],
-        include=["documents", "metadatas"],
-    )
-
-    assert stored_data["ids"] == ["eng-pump-001-elevated-vibration"]
-    assert stored_data["metadatas"] is not None
-    assert stored_data["metadatas"][0]["document_id"] == ("ENG-PUMP-001")
+        with Session(engine) as session:
+            stored_chunk = session.scalar(
+                select(RagChunk).where(
+                    RagChunk.collection_name == "test_engineering_docs",
+                    RagChunk.chunk_id == "eng-pump-001-elevated-vibration",
+                )
+            )
+            assert stored_chunk is not None
+            assert stored_chunk.metadata_json["document_id"] == "ENG-PUMP-001"
+            assert "coupling misalignment" in stored_chunk.content
+            assert stored_chunk.embedding_dimension == 3
+    finally:
+        engine.dispose()
