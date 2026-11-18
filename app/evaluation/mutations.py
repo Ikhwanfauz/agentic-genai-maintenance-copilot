@@ -70,7 +70,7 @@ def apply_fixture_mutations(
     mutations: Sequence[EvaluationFixtureMutation],
     *,
     database_session: Session,
-        vector_client: SQLVectorStore,
+    vector_client: SQLVectorStore,
     engineering_docs_collection: str,
 ) -> None:
     """Apply controlled mutations to one isolated evaluation environment."""

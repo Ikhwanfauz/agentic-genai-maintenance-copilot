@@ -70,9 +70,7 @@ def main() -> None:
 
     try:
         client = SQLVectorStore(engine)
-        embedding_provider = SentenceTransformerEmbeddingProvider(
-            settings.embedding_model_name
-        )
+        embedding_provider = SentenceTransformerEmbeddingProvider(settings.embedding_model_name)
         summary = index_engineering_documents(
             client=client,
             embedding_provider=embedding_provider,

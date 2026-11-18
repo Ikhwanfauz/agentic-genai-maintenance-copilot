@@ -40,8 +40,7 @@ class IntegrationEmbeddingProvider:
             ("approval", "lockout", "isolation", "work order", "control"),
         )
         vector = [
-            float(sum(normalized_text.count(term) for term in group) + 0.1)
-            for group in groups
+            float(sum(normalized_text.count(term) for term in group) + 0.1) for group in groups
         ]
         magnitude = math.sqrt(sum(value**2 for value in vector))
         return [value / magnitude for value in vector]
@@ -119,14 +118,10 @@ def test_p101_investigation_gathers_evidence_without_mutation() -> None:
         )
 
         vibration_metric = next(
-            metric
-            for metric in sensor_result.metrics
-            if metric.sensor_type == SensorType.VIBRATION
+            metric for metric in sensor_result.metrics if metric.sensor_type == SensorType.VIBRATION
         )
         flow_metric = next(
-            metric
-            for metric in sensor_result.metrics
-            if metric.sensor_type == SensorType.FLOW_RATE
+            metric for metric in sensor_result.metrics if metric.sensor_type == SensorType.FLOW_RATE
         )
 
         assert asset_result.criticality.value == "critical"
@@ -137,7 +132,8 @@ def test_p101_investigation_gathers_evidence_without_mutation() -> None:
         assert flow_metric.trend == TrendDirection.DECREASING
         assert document_result.returned_result_count == 3
         assert any(
-            result.section in {
+            result.section
+            in {
                 "Elevated Vibration",
                 "Correlated Pump and Motor Vibration",
             }

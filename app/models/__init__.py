@@ -16,5 +16,5 @@ __all__ = [
     "ToolCall",
     "WorkOrder",
     "RagChunk",
-    "RagCollection"
+    "RagCollection",
 ]

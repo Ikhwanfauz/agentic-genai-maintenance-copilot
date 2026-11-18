@@ -34,18 +34,14 @@ def test_environment_seeds_real_sql_vector_store_and_tools(
         fixture,
     ) as environment:
         with environment.session_factory() as database_session:
-            asset_count = int(
-                database_session.scalar(select(func.count()).select_from(Asset)) or 0
-            )
+            asset_count = int(database_session.scalar(select(func.count()).select_from(Asset)) or 0)
             sensor_count = int(
                 database_session.scalar(select(func.count()).select_from(SensorReading)) or 0
             )
 
         assert asset_count == 4
         assert sensor_count == 2520
-        assert environment.vector_client.count(
-            environment.engineering_docs_collection
-        ) == 9
+        assert environment.vector_client.count(environment.engineering_docs_collection) == 9
         assert {tool.name for tool in environment.tools} == {
             "get_asset_details",
             "query_maintenance_history",
@@ -87,9 +83,7 @@ def test_environment_applies_empty_document_mutation(
         tmp_path / "empty-documents",
         fixture,
     ) as environment:
-        assert environment.vector_client.count(
-            environment.engineering_docs_collection
-        ) == 0
+        assert environment.vector_client.count(environment.engineering_docs_collection) == 0
 
 
 def test_environment_rejects_existing_database(

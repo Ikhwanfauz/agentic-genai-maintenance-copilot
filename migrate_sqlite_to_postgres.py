@@ -26,9 +26,7 @@ def main():
     if target_engine.dialect.name != "postgresql":
         raise RuntimeError("DATABASE_URL must point to PostgreSQL.")
 
-    source_engine = create_engine(
-        "sqlite:///file:" + source_path.as_posix() + "?mode=ro&uri=true"
-    )
+    source_engine = create_engine("sqlite:///file:" + source_path.as_posix() + "?mode=ro&uri=true")
 
     try:
         source_metadata = MetaData()
@@ -50,11 +48,7 @@ def main():
         if actual_tables != expected_tables:
             raise RuntimeError("Unexpected SQLite tables; review before migrating.")
 
-        tables = [
-            table
-            for table in source_metadata.sorted_tables
-            if table.name in expected_tables
-        ]
+        tables = [table for table in source_metadata.sorted_tables if table.name in expected_tables]
 
         with source_engine.connect() as source, target_engine.begin() as target:
             # Refuse to overwrite any existing application data.
@@ -62,9 +56,7 @@ def main():
                 destination = target_metadata.tables[table.name]
                 count = target.scalar(select(func.count()).select_from(destination))
                 if count:
-                    raise RuntimeError(
-                        f"Target table {table.name} is not empty. Nothing copied."
-                    )
+                    raise RuntimeError(f"Target table {table.name} is not empty. Nothing copied.")
 
             source_rows = {}
             parent_links = []
@@ -73,9 +65,7 @@ def main():
                 destination = target_metadata.tables[table.name]
                 rows = [
                     normalize_row(row)
-                    for row in source.execute(
-                        select(table).order_by(table.c.id)
-                    ).mappings()
+                    for row in source.execute(select(table).order_by(table.c.id)).mappings()
                 ]
                 source_rows[table.name] = rows
 
@@ -124,10 +114,7 @@ def main():
                 if sequence:
                     maximum = target.scalar(select(func.max(destination.c.id)))
                     target.execute(
-                        text(
-                            "SELECT setval(CAST(:sequence AS regclass), "
-                            ":value, :has_rows)"
-                        ),
+                        text("SELECT setval(CAST(:sequence AS regclass), :value, :has_rows)"),
                         {
                             "sequence": sequence,
                             "value": maximum if maximum is not None else 1,

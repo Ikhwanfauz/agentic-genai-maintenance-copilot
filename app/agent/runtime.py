@@ -63,9 +63,7 @@ def open_agent_runtime(
         diagnosis_model = bind_diagnosis_output(raw_model)
         proposal_node = create_propose_work_order_node(session_factory)
 
-        with open_sqlite_checkpointer(
-            resolved_settings.langgraph_checkpoint_path
-        ) as checkpointer:
+        with open_sqlite_checkpointer(resolved_settings.langgraph_checkpoint_path) as checkpointer:
             graph = build_agent_graph(
                 investigation_model,
                 tools,

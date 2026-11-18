@@ -57,9 +57,9 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             compare_type=True,
             autogenerate_plugins=[
-            "alembic.autogenerate.*",
-            "alembic.ext.checkconstraint_byname",
-        ],
+                "alembic.autogenerate.*",
+                "alembic.ext.checkconstraint_byname",
+            ],
             render_as_batch=connection.dialect.name == "sqlite",
         )
 

@@ -113,12 +113,8 @@ def test_open_agent_runtime_composes_shared_dependencies(runtime_dependencies) -
         dependencies["raw_model"],
         dependencies["tools"],
     )
-    factories["bind_diagnosis_output"].assert_called_once_with(
-        dependencies["raw_model"]
-    )
-    factories["create_propose_work_order_node"].assert_called_once_with(
-        session_factory
-    )
+    factories["bind_diagnosis_output"].assert_called_once_with(dependencies["raw_model"])
+    factories["create_propose_work_order_node"].assert_called_once_with(session_factory)
     factories["build_agent_graph"].assert_called_once_with(
         dependencies["investigation_model"],
         dependencies["tools"],

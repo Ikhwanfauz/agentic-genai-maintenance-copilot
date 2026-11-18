@@ -38,14 +38,10 @@ def postgres_store():
         try:
             with engine.begin() as connection:
                 connection.execute(
-                    delete(RagChunk).where(
-                        RagChunk.collection_name == collection_name
-                    )
+                    delete(RagChunk).where(RagChunk.collection_name == collection_name)
                 )
                 connection.execute(
-                    delete(RagCollection).where(
-                        RagCollection.name == collection_name
-                    )
+                    delete(RagCollection).where(RagCollection.name == collection_name)
                 )
         finally:
             engine.dispose()
@@ -118,10 +114,10 @@ def test_postgres_failed_reindex_rolls_back_existing_documents(postgres_store):
         )
 
     assert store.count(name) == 2
-    assert [
-        match.chunk_id
-        for match in store.search(name, [0.0, 0.0, 0.0], limit=2)
-    ] == ["near", "far"]
+    assert [match.chunk_id for match in store.search(name, [0.0, 0.0, 0.0], limit=2)] == [
+        "near",
+        "far",
+    ]
 
 
 def test_postgres_rejects_wrong_query_dimension(postgres_store):

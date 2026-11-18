@@ -51,8 +51,7 @@ class ScenarioEmbeddingProvider:
             ("approval", "lockout", "isolation", "work order", "control"),
         )
         vector = [
-            float(sum(normalized_text.count(term) for term in group) + 0.1)
-            for group in groups
+            float(sum(normalized_text.count(term) for term in group) + 0.1) for group in groups
         ]
         magnitude = math.sqrt(sum(value**2 for value in vector))
         return [value / magnitude for value in vector]
@@ -133,10 +132,7 @@ def scenario_environment(
 
 def assert_environment_unchanged(environment: ScenarioEnvironment) -> None:
     assert count_sql_rows(environment.engine) == environment.baseline_sql_counts
-    assert (
-        environment.vector_client.count(COLLECTION_NAME)
-        == environment.baseline_vector_count
-    )
+    assert environment.vector_client.count(COLLECTION_NAME) == environment.baseline_vector_count
 
 
 def tool_call(
@@ -321,8 +317,7 @@ def test_incomplete_investigation_downgrades_claimed_diagnosis(
     assert result["grounding_result"].decision == "abstained"
     assert result["grounding_result"].downgraded is True
     assert any(
-        "coverage is incomplete" in violation
-        for violation in result["grounding_result"].violations
+        "coverage is incomplete" in violation for violation in result["grounding_result"].violations
     )
     assert_environment_unchanged(scenario_environment)
 
@@ -352,9 +347,7 @@ def test_tool_failure_abstains_without_collecting_failed_output(
         )
     )
 
-    tool_messages = [
-        message for message in result["messages"] if isinstance(message, ToolMessage)
-    ]
+    tool_messages = [message for message in result["messages"] if isinstance(message, ToolMessage)]
     assert result["status"] == AgentStatus.COMPLETED
     assert len(tool_messages) == 1
     assert tool_messages[0].status == "error"

@@ -57,18 +57,14 @@ class SQLVectorStore:
 
         with Session(self.engine) as session, session.begin():
             collection = session.scalar(
-                select(RagCollection)
-                .where(RagCollection.name == name)
-                .with_for_update()
+                select(RagCollection).where(RagCollection.name == name).with_for_update()
             )
             if collection is None:
                 collection = RagCollection(name=name)
                 session.add(collection)
                 session.flush()
 
-            session.execute(
-                delete(RagChunk).where(RagChunk.collection_name == name)
-            )
+            session.execute(delete(RagChunk).where(RagChunk.collection_name == name))
             collection.embedding_dimension = dimension
             collection.embedding_model = embedding_model
             session.flush()
@@ -89,17 +85,18 @@ class SQLVectorStore:
 
     def count(self, name: str) -> int:
         with Session(self.engine) as session:
-            return session.scalar(
-                select(func.count())
-                .select_from(RagChunk)
-                .where(RagChunk.collection_name == name)
-            ) or 0
+            return (
+                session.scalar(
+                    select(func.count())
+                    .select_from(RagChunk)
+                    .where(RagChunk.collection_name == name)
+                )
+                or 0
+            )
 
     def clear(self, name: str) -> None:
         with Session(self.engine) as session, session.begin():
-            session.execute(
-                delete(RagChunk).where(RagChunk.collection_name == name)
-            )
+            session.execute(delete(RagChunk).where(RagChunk.collection_name == name))
 
     def search(
         self,
